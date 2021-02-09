@@ -24,6 +24,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
+#include "usbd_cdc_if.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -49,6 +51,7 @@ char time[10];
 char date[10];
 
 uint8_t alarm = 0;
+char TimeToSend[10];
 
 /* USER CODE END PV */
 
@@ -62,25 +65,25 @@ static void MX_RTC_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-void set_time (void)
+
+void SetTime (void)
 {
 	RTC_TimeTypeDef sTime;
 	RTC_DateTypeDef sDate;
-	/** Initialize RTC and set the Time and Date
-	  */
-	sTime.Hours = 0x0;
-	sTime.Minutes = 0x5;
-	sTime.Seconds = 0x0;
+	/** Initialize RTC and set the Time and Date*/
+	sTime.Hours = 2;
+	sTime.Minutes = 6;
+	sTime.Seconds = 0;
 	sTime.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
 	sTime.StoreOperation = RTC_STOREOPERATION_RESET;
 	if (HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BCD) != HAL_OK)
 	{
 	Error_Handler();
 	}
-	sDate.WeekDay = RTC_WEEKDAY_TUESDAY;
+	sDate.WeekDay = RTC_WEEKDAY_WEDNESDAY;
 	sDate.Month = RTC_MONTH_FEBRUARY;
-	sDate.Date = 0x02;
-	sDate.Year = 0x21;
+	sDate.Date = 10;
+	sDate.Year = 21;
 
 	if (HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BCD) != HAL_OK)
 	{
@@ -90,6 +93,10 @@ void set_time (void)
 	HAL_RTCEx_BKUPWrite(&hrtc, RTC_BKP_DR1, 0x32F2);
 }
 
+//void AddRandNtoTime (char Source[], EndString[])
+//{
+//
+//}
 //void set_alarm (void)
 //{
 //	RTC_AlarmTypeDef sAlarm;
@@ -112,21 +119,21 @@ void set_time (void)
 //	}
 //}
 
-void get_time (void)
+void GetTimeDate (void)
 {
 	RTC_DateTypeDef gDate;
 	RTC_TimeTypeDef gTime;
 
 	/* Get the RTC current Time */
-	HAL_RTC_GetTime(&hrtc, &gTime, RTC_FORMAT_BIN);
+	HAL_RTC_GetTime(&hrtc, &gTime, RTC_FORMAT_BCD);
 	/* Get the RTC Curret Date */
-	HAL_RTC_GetDate(&hrtc, &gDate, RTC_FORMAT_BIN);
+	HAL_RTC_GetDate(&hrtc, &gDate, RTC_FORMAT_BCD);
 
 	/* Display time Format: hh:mm:ss */
 	sprintf((char*)time,"%02d:%02d:%02d",gTime.Hours, gTime.Minutes, gTime.Seconds);
 
-	/* Display date Format: mm-dd-yy */
-	sprintf((char*)date,"%02d-%02d-%02d",gDate.Year, gDate.Month, 2000+gDate.Date);
+	/* Display date Format: yy-mm-dd */
+	sprintf((char*)date,"%02d-%02d-%02d",2000+gDate.Year, gDate.Month, gDate.Date);
 }
 
 void HAL_RTC_AlarmAEventCallback(RTC_HandleTypeDef *hrtc)
@@ -174,8 +181,9 @@ int main(void)
 
   if (HAL_RTCEx_BKUPRead(&hrtc, RTC_BKP_DR1) != 0x32F2)
   {
-	  set_time();
+	  SetTime();
   }
+
 //  set_alarm();
 
   /* USER CODE END 2 */
@@ -192,11 +200,12 @@ int main(void)
 //	  if I upload conf. from cubemxconfigurator I need to delete set time from MX_RTC_Init()!
 //	  !!
 
-	  get_time();
-	  HAL_GPIO_WritePin(LED0_GPIO_Port, LED0_Pin, RESET);
-	  HAL_Delay(200);
-	  HAL_GPIO_WritePin(LED0_GPIO_Port, LED0_Pin, SET);
-	  HAL_Delay(200);
+	  GetTimeDate();
+	  HAL_Delay(1000);
+	  strncpy(TimeToSend, time, 8);
+	  TimeToSend[8] = '\r';
+	  TimeToSend[9] = '\n';
+	  CDC_Transmit_FS(TimeToSend, 10);
 
 //	  if (alarm)
 //	  {
@@ -300,8 +309,8 @@ static void MX_RTC_Init(void)
 
   /** Initialize RTC and set the Time and Date
   */
-//  sTime.Hours = 0x3;
-//  sTime.Minutes = 0x14;
+//  sTime.Hours = 0x1;
+//  sTime.Minutes = 57;
 //  sTime.Seconds = 0x0;
 //  sTime.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
 //  sTime.StoreOperation = RTC_STOREOPERATION_RESET;
@@ -309,10 +318,10 @@ static void MX_RTC_Init(void)
 //  {
 //    Error_Handler();
 //  }
-//  sDate.WeekDay = RTC_WEEKDAY_SUNDAY;
-//  sDate.Month = RTC_MONTH_JANUARY;
-//  sDate.Date = 0x31;
-//  sDate.Year = 0x0;
+//  sDate.WeekDay = RTC_WEEKDAY_WEDNESDAY;
+//  sDate.Month = RTC_MONTH_FEBRUARY;
+//  sDate.Date = 0x10;
+//  sDate.Year = 0x21;
 //
 //  if (HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BCD) != HAL_OK)
 //  {
@@ -334,6 +343,7 @@ static void MX_GPIO_Init(void)
   GPIO_InitTypeDef GPIO_InitStruct = {0};
 
   /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOE_CLK_ENABLE();
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOF_CLK_ENABLE();
   __HAL_RCC_GPIOH_CLK_ENABLE();
@@ -342,12 +352,25 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOF, LED0_Pin|LED1_Pin, GPIO_PIN_RESET);
 
+  /*Configure GPIO pins : KEY1_Pin KEY0_Pin */
+  GPIO_InitStruct.Pin = KEY1_Pin|KEY0_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
+
   /*Configure GPIO pins : LED0_Pin LED1_Pin */
   GPIO_InitStruct.Pin = LED0_Pin|LED1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI3_IRQn, 2, 0);
+  HAL_NVIC_EnableIRQ(EXTI3_IRQn);
+
+  HAL_NVIC_SetPriority(EXTI4_IRQn, 2, 0);
+  HAL_NVIC_EnableIRQ(EXTI4_IRQn);
 
 }
 

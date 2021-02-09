@@ -43,6 +43,10 @@
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
 
+uint8_t JitterButtonK0 = 0;
+uint8_t JitterButtonK1 = 0;
+RTC_HandleTypeDef hrtc;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -198,6 +202,80 @@ void SysTick_Handler(void)
 /* For the available peripheral interrupt handler names,                      */
 /* please refer to the startup file (startup_stm32f4xx.s).                    */
 /******************************************************************************/
+
+/**
+  * @brief This function handles EXTI line3 interrupt.
+  */
+void EXTI3_IRQHandler(void)
+{
+  /* USER CODE BEGIN EXTI3_IRQn 0 */
+
+	if (HAL_GetTick() - JitterButtonK0 > 300)
+	{
+		JitterButtonK0 = HAL_GetTick();
+
+//		here is our action on KEY1 button
+		RTC_TimeTypeDef gTime;
+		RTC_TimeTypeDef sTime;
+
+		HAL_RTC_GetTime(&hrtc, &gTime, RTC_FORMAT_BCD);
+		sTime.Hours = gTime.Hours;
+		sTime.Minutes = gTime.Minutes;
+		sTime.Seconds = gTime.Seconds-3;
+
+		if (HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BCD) != HAL_OK)
+		{
+		  Error_Handler();
+		}
+
+		HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+		HAL_Delay(1000);
+		HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+	}
+
+  /* USER CODE END EXTI3_IRQn 0 */
+  HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_3);
+  /* USER CODE BEGIN EXTI3_IRQn 1 */
+
+  /* USER CODE END EXTI3_IRQn 1 */
+}
+
+/**
+  * @brief This function handles EXTI line4 interrupt.
+  */
+void EXTI4_IRQHandler(void)
+{
+  /* USER CODE BEGIN EXTI4_IRQn 0 */
+
+	if (HAL_GetTick() - JitterButtonK1 > 300)
+	{
+		JitterButtonK1 = HAL_GetTick();
+
+//		here is our action on KEY1 button
+		RTC_TimeTypeDef gTime;
+		RTC_TimeTypeDef sTime;
+
+		HAL_RTC_GetTime(&hrtc, &gTime, RTC_FORMAT_BCD);
+		sTime.Hours = gTime.Hours;
+		sTime.Minutes = gTime.Minutes;
+		sTime.Seconds = gTime.Seconds+5;
+
+		if (HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BCD) != HAL_OK)
+		{
+		  Error_Handler();
+		}
+
+		HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin);
+		HAL_Delay(1000);
+		HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin);
+	}
+
+  /* USER CODE END EXTI4_IRQn 0 */
+  HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_4);
+  /* USER CODE BEGIN EXTI4_IRQn 1 */
+
+  /* USER CODE END EXTI4_IRQn 1 */
+}
 
 /**
   * @brief This function handles USB On The Go FS global interrupt.
