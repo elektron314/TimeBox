@@ -58,8 +58,8 @@ all: main-build
 main-build: TimeBox.elf secondary-outputs
 
 # Tool invocations
-TimeBox.elf: $(OBJS) $(USER_OBJS) /Users/el314/Disk-O/mail.ru-348330048-4/Programming/STM32CubeIDE/workspace_1.5.1/TimeBox/STM32F407ZETX_FLASH.ld
-	arm-none-eabi-gcc -o "TimeBox.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"/Users/el314/Disk-O/mail.ru-348330048-4/Programming/STM32CubeIDE/workspace_1.5.1/TimeBox/STM32F407ZETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="TimeBox.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+TimeBox.elf: $(OBJS) $(USER_OBJS) /Users/el314/Disk-O/mail.ru-348330048-4/Programming/TimeBox/STM32F407ZETX_FLASH.ld
+	arm-none-eabi-gcc -o "TimeBox.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"/Users/el314/Disk-O/mail.ru-348330048-4/Programming/TimeBox/STM32F407ZETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="TimeBox.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

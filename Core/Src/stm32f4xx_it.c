@@ -46,6 +46,8 @@
 uint8_t JitterButtonK0 = 0;
 uint8_t JitterButtonK1 = 0;
 RTC_HandleTypeDef hrtc;
+extern uint8_t TurnHexIntoDec(uint8_t hex);
+extern uint8_t TurnDecIntoHex(uint8_t hex);
 
 /* USER CODE END PV */
 
@@ -221,7 +223,7 @@ void EXTI3_IRQHandler(void)
 		HAL_RTC_GetTime(&hrtc, &gTime, RTC_FORMAT_BCD);
 		sTime.Hours = gTime.Hours;
 		sTime.Minutes = gTime.Minutes;
-		sTime.Seconds = gTime.Seconds-3;
+		sTime.Seconds = TurnDecIntoHex(TurnHexIntoDec(gTime.Seconds)-7);
 
 		if (HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BCD) != HAL_OK)
 		{
@@ -258,7 +260,7 @@ void EXTI4_IRQHandler(void)
 		HAL_RTC_GetTime(&hrtc, &gTime, RTC_FORMAT_BCD);
 		sTime.Hours = gTime.Hours;
 		sTime.Minutes = gTime.Minutes;
-		sTime.Seconds = gTime.Seconds+5;
+		sTime.Seconds = TurnDecIntoHex(TurnHexIntoDec(gTime.Seconds)+3);
 
 		if (HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BCD) != HAL_OK)
 		{
