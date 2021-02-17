@@ -53,12 +53,14 @@ RTC_HandleTypeDef hrtc;
 
 /* USER CODE BEGIN PV */
 
+volatile uint8_t MyAlarmMinutes= 0;
+
 char time[10];
 char date[10];
 
-uint8_t alarm = 0;
-uint8_t NewValue = 0;
-char TimeToSend[10];
+uint8_t Alarm = 0;
+uint8_t Alarmed = 0;
+//char TimeToSend[10];
 
 /* USER CODE END PV */
 
@@ -75,31 +77,31 @@ static void MX_RTC_Init(void);
 
 uint8_t TurnHexIntoDec(uint8_t hex)
 {
-	return (( hex & 0x000F ) + ( (hex >> 4) & 0x000F ) * 10);
+	return ((hex & 0x000F) + ((hex >> 4) & 0x000F)*10);
 }
 
 uint8_t TurnDecIntoHex(uint8_t dec)
 {
-	return ((((uint8_t)(floor(dec/10))) << 4) + (dec % 10));
+	return ((((uint8_t)(floor(dec/10))) << 4) + dec%10);
 }
 
-void SetTime (void)
+void SetTime(void)
 {
 	RTC_TimeTypeDef sTime;
 	RTC_DateTypeDef sDate;
 	/** Initialize RTC and set the Time and Date*/
-	sTime.Hours = 0x23;
-	sTime.Minutes = 0x13;
-	sTime.Seconds = 0x30;
+	sTime.Hours = 0x3;
+	sTime.Minutes = 0x40;
+	sTime.Seconds = 0x00;
 	sTime.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
 	sTime.StoreOperation = RTC_STOREOPERATION_RESET;
 	if (HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BCD) != HAL_OK)
 	{
 	Error_Handler();
 	}
-	sDate.WeekDay = RTC_WEEKDAY_MONDAY;
+	sDate.WeekDay = RTC_WEEKDAY_WEDNESDAY;
 	sDate.Month = RTC_MONTH_FEBRUARY;
-	sDate.Date = 0x15;
+	sDate.Date = 0x17;
 	sDate.Year = 0x21;
 
 	if (HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BCD) != HAL_OK)
@@ -110,20 +112,20 @@ void SetTime (void)
 	HAL_RTCEx_BKUPWrite(&hrtc, RTC_BKP_DR1, 0x32F2);
 }
 
-void set_alarm (void)
+void SetAlarm(void)
 {
 	RTC_AlarmTypeDef sAlarm;
 
-	sAlarm.AlarmTime.Hours = 0x0;
-	sAlarm.AlarmTime.Minutes = 0x45;
-	sAlarm.AlarmTime.Seconds = 0x30;
+	sAlarm.AlarmTime.Hours = 0x3;
+	sAlarm.AlarmTime.Minutes = 0x40;
+	sAlarm.AlarmTime.Seconds = 0x0;
 	sAlarm.AlarmTime.SubSeconds = 0x0;
 	sAlarm.AlarmTime.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
 	sAlarm.AlarmTime.StoreOperation = RTC_STOREOPERATION_RESET;
 	sAlarm.AlarmMask = RTC_ALARMMASK_NONE;
 	sAlarm.AlarmSubSecondMask = RTC_ALARMSUBSECONDMASK_ALL;
 	sAlarm.AlarmDateWeekDaySel = RTC_ALARMDATEWEEKDAYSEL_DATE;
-	sAlarm.AlarmDateWeekDay = 0x2;
+	sAlarm.AlarmDateWeekDay = 0x17;
 	sAlarm.Alarm = RTC_ALARM_A;
 
 	if (HAL_RTC_SetAlarm_IT(&hrtc, &sAlarm, RTC_FORMAT_BCD) != HAL_OK)
@@ -136,8 +138,6 @@ void GetTimeDate (void)
 {
 	RTC_DateTypeDef gDate;
 	RTC_TimeTypeDef gTime;
-
-//	uint8_t MyMinutes = 0;
 
 	/* Get the RTC current Time */
 	HAL_RTC_GetTime(&hrtc, &gTime, RTC_FORMAT_BCD);
@@ -154,12 +154,12 @@ void GetTimeDate (void)
 
 void HAL_RTC_AlarmAEventCallback(RTC_HandleTypeDef *hrtc)
 {
-	alarm = 1;
+	Alarm = 1;
 }
 
-void to_do_on_alarm (void)
+void ToDoOnAlarm (void)
 {
-	HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, RESET);
+	HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
 }
 
 /* USER CODE END 0 */
@@ -201,7 +201,7 @@ int main(void)
 	  SetTime();
   }
 
-//  set_alarm();
+  SetAlarm();
 
   /* USER CODE END 2 */
 
@@ -218,17 +218,18 @@ int main(void)
 //	  !!
 
 	  GetTimeDate();
-	  HAL_Delay(1000);
-	  strncpy(TimeToSend, time, 8);
-	  TimeToSend[8] = '\r';
-	  TimeToSend[9] = '\n';
-	  CDC_Transmit_FS(TimeToSend, 10);
 
-//	  if (alarm)
-//	  {
-//		  to_do_on_alarm();
-//		  alarm = 0;
-//	  }
+	  if (Alarmed)
+	  {
+		  HAL_GPIO_WritePin(LED0_GPIO_Port, LED0_Pin, GPIO_PIN_RESET);
+	  } else HAL_GPIO_WritePin(LED0_GPIO_Port, LED0_Pin, GPIO_PIN_SET);
+
+	  if (Alarm)
+	  {
+		  ToDoOnAlarm();
+		  Alarm = 0;
+		  Alarmed = 1;
+	  }
 
   }
   /* USER CODE END 3 */
@@ -327,8 +328,8 @@ static void MX_RTC_Init(void)
 
   /** Initialize RTC and set the Time and Date
   */
-//  sTime.Hours = 0x01;
-//  sTime.Minutes = 0x57;
+//  sTime.Hours = 1;
+//  sTime.Minutes = 57;
 //  sTime.Seconds = 0x0;
 //  sTime.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
 //  sTime.StoreOperation = RTC_STOREOPERATION_RESET;
@@ -395,7 +396,7 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pins : LED0_Pin LED1_Pin */
   GPIO_InitStruct.Pin = LED0_Pin|LED1_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
