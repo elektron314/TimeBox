@@ -58,17 +58,13 @@ char date[10];
 
 uint8_t alarm = 0;
 uint8_t Alarmed = 0;
-uint8_t Toggle = 0;
-uint8_t SetTheAlarm = 0;
-volatile uint8_t SetHours, SetMinutes = 0;
-uint8_t AlarmSeted = 0;
-uint8_t TestNumberDec = 59;
-uint8_t TestNumberDecToHex;
-uint8_t TestNumberHex = 0x23;
-uint8_t TestNumberHexToDec;
-uint8_t TestDec, TestHex;
 
-//char TimeToSend[10];
+//uint8_t ShowMeHours, ShowMeMin;
+
+volatile uint8_t Toggle = 0;
+volatile uint8_t SetTheAlarm = 0;
+volatile uint8_t SetHours, SetMinutes = 0;
+volatile uint8_t AlarmSet = 0;
 
 /* USER CODE END PV */
 
@@ -212,7 +208,7 @@ int main(void)
 	  SetTime();
   }
 
-  SetAlarm(1, 38);
+//  SetAlarm(1, 38);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -224,18 +220,15 @@ int main(void)
     /* USER CODE BEGIN 3 */
 
 //	!!
-//	  if I upload conf. from cubemxconfigurator I need to delete set time from MX_RTC_Init()!
+//	  if I upload conf. from Cubemxconfigurator I need to delete set time from MX_RTC_Init()!
 //	  !!
-
-	  TestNumberDecToHex = TurnDecIntoHex(TestNumberDec);
-	  TestNumberHexToDec = TurnHexIntoDec(TestNumberHex);
 
 	  if (SetTheAlarm)
 	  {
 		  SetAlarm(SetHours, SetMinutes);
-		  TestDec = SetHours;
-		  TestHex = SetMinutes;
-		  AlarmSeted = 1;
+//		  ShowMeHours = SetHours;
+//		  ShowMeMin = SetMinutes;
+		  AlarmSet = 1;
 		  SetTheAlarm = 0;
 	  }
 
@@ -252,6 +245,7 @@ int main(void)
 	  {
 		  ToDoOnAlarm();
 		  alarm = 0;
+		  AlarmSet = 0;
 	  }
 
   }
