@@ -65,6 +65,8 @@ volatile uint8_t Toggle = 0;
 volatile uint8_t SetTheAlarm = 0;
 volatile uint8_t SetHours, SetMinutes = 0;
 volatile uint8_t AlarmSet = 0;
+uint8_t GetHours, GetMinutes = 0;
+uint8_t ShowMeHours, ShowMeMin;
 
 /* USER CODE END PV */
 
@@ -131,7 +133,7 @@ void SetAlarm(uint8_t SetInHours, uint8_t SetInMinutes)
 	sAlarm.AlarmMask = RTC_ALARMMASK_NONE;
 	sAlarm.AlarmSubSecondMask = RTC_ALARMSUBSECONDMASK_ALL;
 	sAlarm.AlarmDateWeekDaySel = RTC_ALARMDATEWEEKDAYSEL_DATE;
-	sAlarm.AlarmDateWeekDay = 0x19;
+	sAlarm.AlarmDateWeekDay = 0x20;
 	sAlarm.Alarm = RTC_ALARM_A;
 
 	if (HAL_RTC_SetAlarm_IT(&hrtc, &sAlarm, RTC_FORMAT_BCD) != HAL_OK)
@@ -155,7 +157,6 @@ void GetTimeDate (void)
 
 	/* Display date Format: yy-mm-dd */
 	sprintf((char*)date,"%02x-%02x-%02x",2000+gDate.Year, gDate.Month, gDate.Date);
-
 }
 
 void HAL_RTC_AlarmAEventCallback(RTC_HandleTypeDef *hrtc)
@@ -208,6 +209,8 @@ int main(void)
 	  SetTime();
   }
 
+  RTC_AlarmTypeDef gAlarm;
+
 //  SetAlarm(1, 38);
   /* USER CODE END 2 */
 
@@ -226,8 +229,8 @@ int main(void)
 	  if (SetTheAlarm)
 	  {
 		  SetAlarm(SetHours, SetMinutes);
-//		  ShowMeHours = SetHours;
-//		  ShowMeMin = SetMinutes;
+		  ShowMeHours = SetHoustrs;
+		  ShowMeMin = SetMinutes;
 		  AlarmSet = 1;
 		  SetTheAlarm = 0;
 	  }
@@ -239,6 +242,9 @@ int main(void)
 		  HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin);
 		  Toggle = 0;
 		  Alarmed = 0;
+		  HAL_RTC_GetAlarm(&hrtc, &gAlarm, RTC_ALARM_A, RTC_FORMAT_BCD);
+		  GetHours = TurnHexIntoDec(gAlarm.AlarmTime.Hours);
+		  GetMinutes = TurnHexIntoDec(gAlarm.AlarmTime.Minutes);
 	  }
 
 	  if (alarm)
@@ -316,9 +322,9 @@ static void MX_RTC_Init(void)
 
   /* USER CODE END RTC_Init 0 */
 
-  RTC_TimeTypeDef sTime = {0};
-  RTC_DateTypeDef sDate = {0};
-  RTC_AlarmTypeDef sAlarm = {0};
+//  RTC_TimeTypeDef sTime = {0};
+//  RTC_DateTypeDef sDate = {0};
+//  RTC_AlarmTypeDef sAlarm = {0};
 
   /* USER CODE BEGIN RTC_Init 1 */
 
