@@ -19,12 +19,10 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "usb_device.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
-#include "usbd_cdc_if.h"
 #include <stdio.h>
 #include <math.h>
 
@@ -38,9 +36,6 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
-uint8_t TurnHexIntoDec(uint8_t hex);
-uint8_t TurnDecIntoHex(uint8_t hex);
-
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -49,24 +44,31 @@ uint8_t TurnDecIntoHex(uint8_t hex);
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+
 RTC_HandleTypeDef hrtc;
+UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
 
-char time[10];
-char date[10];
+char time[9];
+char date[9];
 
 uint8_t alarm = 0;
 uint8_t Alarmed = 0;
 
-//uint8_t ShowMeHours, ShowMeMin;
-
 volatile uint8_t Toggle = 0;
 volatile uint8_t SetTheAlarm = 0;
-volatile uint8_t SetHours, SetMinutes = 0;
+volatile uint8_t SetHours, SetMinutes, SetDate = 0;
 volatile uint8_t AlarmSet = 0;
 uint8_t GetHours, GetMinutes = 0;
-uint8_t ShowMeHours, ShowMeMin;
+uint8_t ShowMeHours, ShowMeMin, ShowMeDate;
+volatile int8_t receiveBuf;
+uint8_t CharCounter = 0;
+uint8_t MessageLimitLength = 5;
+uint32_t StartIgnoringTimer;
+uint8_t IgnoringFlag;
+uint8_t Buffer[] = {0,0,0,0};
+uint32_t NowTime;
 
 /* USER CODE END PV */
 
@@ -74,6 +76,7 @@ uint8_t ShowMeHours, ShowMeMin;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_RTC_Init(void);
+static void MX_USART1_UART_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -81,8 +84,8 @@ static void MX_RTC_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-//Time is storing in format that being in Hex visually looks like the real time in Dec
-//So this function translate this format into real Dec number of time digits
+//Time is storing in format that being in Hex visually looks like the real time in decimals
+//So this function translate this format into real decimal number of time digits
 uint8_t TurnHexIntoDec(uint8_t hex)
 {
 	return ((hex & 0x000F) + ((hex >> 4) & 0x000F)*10);
@@ -93,34 +96,44 @@ uint8_t TurnDecIntoHex(uint8_t dec)
 	return ((((uint8_t)(floor(dec/10))) << 4) + dec%10);
 }
 
+void HappyToggling()
+{
+	uint8_t TogglingDelay = 0;
+	for (TogglingDelay = 0; TogglingDelay < 50; TogglingDelay++)
+	{
+	  HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin);
+	  HAL_Delay(TogglingDelay);
+	}
+}
+
 void SetTime(void)
 {
 	RTC_TimeTypeDef sTime;
 	RTC_DateTypeDef sDate;
 	/** Initialize RTC and set the Time and Date*/
-	sTime.Hours = 0x1;
-	sTime.Minutes = 0x23;
+	sTime.Hours = 0x22;
+	sTime.Minutes = 0x14;
 	sTime.Seconds = 0x0;
 	sTime.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
 	sTime.StoreOperation = RTC_STOREOPERATION_RESET;
 	if (HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BCD) != HAL_OK)
 	{
-	Error_Handler();
+		Error_Handler();
 	}
-	sDate.WeekDay = RTC_WEEKDAY_FRIDAY;
+	sDate.WeekDay = RTC_WEEKDAY_TUESDAY;
 	sDate.Month = RTC_MONTH_FEBRUARY;
-	sDate.Date = 0x19;
+	sDate.Date = 0x23;
 	sDate.Year = 0x21;
 
 	if (HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BCD) != HAL_OK)
 	{
-	Error_Handler();
+		Error_Handler();
 	}
 
 	HAL_RTCEx_BKUPWrite(&hrtc, RTC_BKP_DR1, 0x32F2);
 }
 
-void SetAlarm(uint8_t SetInHours, uint8_t SetInMinutes)
+void SetAlarm(uint8_t SetInHours, uint8_t SetInMinutes, uint8_t SetInDate)
 {
 	RTC_AlarmTypeDef sAlarm;
 
@@ -133,7 +146,7 @@ void SetAlarm(uint8_t SetInHours, uint8_t SetInMinutes)
 	sAlarm.AlarmMask = RTC_ALARMMASK_NONE;
 	sAlarm.AlarmSubSecondMask = RTC_ALARMSUBSECONDMASK_ALL;
 	sAlarm.AlarmDateWeekDaySel = RTC_ALARMDATEWEEKDAYSEL_DATE;
-	sAlarm.AlarmDateWeekDay = 0x20;
+	sAlarm.AlarmDateWeekDay = TurnDecIntoHex(SetInDate);
 	sAlarm.Alarm = RTC_ALARM_A;
 
 	if (HAL_RTC_SetAlarm_IT(&hrtc, &sAlarm, RTC_FORMAT_BCD) != HAL_OK)
@@ -156,7 +169,7 @@ void GetTimeDate (void)
 	sprintf((char*)time,"%02x:%02x:%02x",gTime.Hours, gTime.Minutes, gTime.Seconds);
 
 	/* Display date Format: yy-mm-dd */
-	sprintf((char*)date,"%02x-%02x-%02x",2000+gDate.Year, gDate.Month, gDate.Date);
+	sprintf((char*)date,"%02x-%02x-%02x",gDate.Year, gDate.Month, gDate.Date);
 }
 
 void HAL_RTC_AlarmAEventCallback(RTC_HandleTypeDef *hrtc)
@@ -169,6 +182,9 @@ void ToDoOnAlarm (void)
 	HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
 	Alarmed = 1;
 }
+
+  /* USER CODE END 6 */
+
 
 /* USER CODE END 0 */
 
@@ -201,7 +217,7 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_RTC_Init();
-  MX_USB_DEVICE_Init();
+  MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
 
   if (HAL_RTCEx_BKUPRead(&hrtc, RTC_BKP_DR1) != 0x32F2)
@@ -211,7 +227,8 @@ int main(void)
 
   RTC_AlarmTypeDef gAlarm;
 
-//  SetAlarm(1, 38);
+  __HAL_UART_ENABLE_IT(&huart1, UART_IT_RXNE);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -223,14 +240,18 @@ int main(void)
     /* USER CODE BEGIN 3 */
 
 //	!!
-//	  if I upload conf. from Cubemxconfigurator I need to delete set time from MX_RTC_Init()!
-//	  !!
+//	if I upload confifugartion from CubeMX Configurator I need to delete set time from MX_RTC_Init()!
+//	!!
+
+	  HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+	  HAL_Delay(200);
 
 	  if (SetTheAlarm)
 	  {
-		  SetAlarm(SetHours, SetMinutes);
-		  ShowMeHours = SetHoustrs;
+		  SetAlarm(SetHours, SetMinutes, SetDate);
+		  ShowMeHours = SetHours;
 		  ShowMeMin = SetMinutes;
+		  ShowMeDate = SetDate;
 		  AlarmSet = 1;
 		  SetTheAlarm = 0;
 	  }
@@ -254,6 +275,18 @@ int main(void)
 		  AlarmSet = 0;
 	  }
 
+//	  1000 milliseconds is just a time, taken from nothing, during that RX interrupts will be disabled
+	  NowTime = HAL_GetTick();
+	  if ((IgnoringFlag == 1) && ((NowTime - StartIgnoringTimer) > 1000))
+	  {
+		  CharCounter = 0;
+		  IgnoringFlag = 0;
+		  __HAL_UART_CLEAR_OREFLAG(&huart1);
+		  __HAL_UART_ENABLE_IT(&huart1, UART_IT_RXNE);
+
+//		  happy toggling after starting receive again
+		  HappyToggling();
+	  }
   }
   /* USER CODE END 3 */
 }
@@ -279,12 +312,7 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.LSEState = RCC_LSE_ON;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
-  RCC_OscInitStruct.PLL.PLLM = 10;
-  RCC_OscInitStruct.PLL.PLLN = 60;
-  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
-  RCC_OscInitStruct.PLL.PLLQ = 2;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -387,6 +415,39 @@ static void MX_RTC_Init(void)
   /* USER CODE BEGIN RTC_Init 2 */
 
   /* USER CODE END RTC_Init 2 */
+
+}
+
+/**
+  * @brief USART1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART1_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART1_Init 0 */
+
+  /* USER CODE END USART1_Init 0 */
+
+  /* USER CODE BEGIN USART1_Init 1 */
+
+  /* USER CODE END USART1_Init 1 */
+  huart1.Instance = USART1;
+  huart1.Init.BaudRate = 9600;
+  huart1.Init.WordLength = UART_WORDLENGTH_8B;
+  huart1.Init.StopBits = UART_STOPBITS_1;
+  huart1.Init.Parity = UART_PARITY_NONE;
+  huart1.Init.Mode = UART_MODE_TX_RX;
+  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART1_Init 2 */
+
+  /* USER CODE END USART1_Init 2 */
 
 }
 
