@@ -44,8 +44,8 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-
 RTC_HandleTypeDef hrtc;
+
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
@@ -53,21 +53,23 @@ UART_HandleTypeDef huart1;
 char time[9];
 char date[9];
 
-uint8_t alarm = 0;
-uint8_t Alarmed = 0;
+uint8_t alarm;
+uint8_t Alarmed;
 
-volatile uint8_t Toggle = 0;
-volatile uint8_t SetTheAlarm = 0;
-volatile uint8_t SetHours, SetMinutes, SetDate = 0;
-volatile uint8_t AlarmSet = 0;
-uint8_t GetHours, GetMinutes = 0;
+volatile uint8_t GetAlarm;
+
+volatile uint8_t SetTheAlarm;
+volatile uint8_t SetHours, SetMinutes, SetDate;
+volatile uint8_t AlarmSet;
+uint8_t GetHours, GetMinutes;
 uint8_t ShowMeHours, ShowMeMin, ShowMeDate;
-volatile int8_t receiveBuf;
-uint8_t CharCounter = 0;
+
+//volatile int8_t receiveBuf;
+uint8_t CharCounter;
 uint8_t MessageLimitLength = 5;
 uint32_t StartIgnoringTimer;
 uint8_t IgnoringFlag;
-uint8_t Buffer[] = {0,0,0,0};
+uint8_t Buffer[1];
 uint32_t NowTime;
 
 /* USER CODE END PV */
@@ -96,10 +98,11 @@ uint8_t TurnDecIntoHex(uint8_t dec)
 	return ((((uint8_t)(floor(dec/10))) << 4) + dec%10);
 }
 
-void HappyToggling()
+void HappyToggling(uint8_t longetivity)
 {
+//	uint8_t longetivity
 	uint8_t TogglingDelay = 0;
-	for (TogglingDelay = 0; TogglingDelay < 50; TogglingDelay++)
+	for (TogglingDelay = 0; TogglingDelay < longetivity; TogglingDelay++)
 	{
 	  HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin);
 	  HAL_Delay(TogglingDelay);
@@ -179,7 +182,7 @@ void HAL_RTC_AlarmAEventCallback(RTC_HandleTypeDef *hrtc)
 
 void ToDoOnAlarm (void)
 {
-	HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+	HappyToggling(75);
 	Alarmed = 1;
 }
 
@@ -258,10 +261,9 @@ int main(void)
 
 	  GetTimeDate();
 
-	  if (Toggle)
+	  if (GetAlarm)
 	  {
-		  HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin);
-		  Toggle = 0;
+		  GetAlarm = 0;
 		  Alarmed = 0;
 		  HAL_RTC_GetAlarm(&hrtc, &gAlarm, RTC_ALARM_A, RTC_FORMAT_BCD);
 		  GetHours = TurnHexIntoDec(gAlarm.AlarmTime.Hours);
@@ -285,7 +287,7 @@ int main(void)
 		  __HAL_UART_ENABLE_IT(&huart1, UART_IT_RXNE);
 
 //		  happy toggling after starting receive again
-		  HappyToggling();
+		  HappyToggling(50);
 	  }
   }
   /* USER CODE END 3 */

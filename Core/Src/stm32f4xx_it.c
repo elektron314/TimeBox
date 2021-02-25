@@ -26,7 +26,8 @@
 
 #include <stdio.h>
 #include <string.h>
-#include "ctype.h"
+#include <ctype.h>
+#include <stdlib.h>
 
 /* USER CODE END Includes */
 
@@ -64,6 +65,10 @@ extern uint8_t IgnoringFlag;
 uint8_t OpenMessage[5] = "open\0";
 uint8_t SetMessage[7] = "hhmmdd\0";
 
+uint8_t Hstr[2], Mstr[2], Dstr[2];
+extern uint8_t SetTheAlarm;
+extern uint8_t SetHours, SetMinutes, SetDate;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -71,7 +76,7 @@ uint8_t SetMessage[7] = "hhmmdd\0";
 
 extern uint8_t TurnHexIntoDec(uint8_t hex);
 extern uint8_t TurnDecIntoHex(uint8_t hex);
-extern void HappyToggling();
+//extern void HappyToggling;
 
 /* USER CODE END PFP */
 
@@ -226,19 +231,6 @@ void SysTick_Handler(void)
 /******************************************************************************/
 
 /**
-  * @brief This function handles RCC global interrupt.
-  */
-void RCC_IRQHandler(void)
-{
-  /* USER CODE BEGIN RCC_IRQn 0 */
-
-  /* USER CODE END RCC_IRQn 0 */
-  /* USER CODE BEGIN RCC_IRQn 1 */
-
-  /* USER CODE END RCC_IRQn 1 */
-}
-
-/**
   * @brief This function handles EXTI line3 interrupt.
   */
 void EXTI3_IRQHandler(void)
@@ -367,6 +359,26 @@ void USART1_IRQHandler(void)
 				  IgnoringFlag = 1;
 				  __HAL_UART_DISABLE_IT(&huart1, UART_IT_RXNE);
 				  HAL_UART_Transmit(&huart1, Buffer, CharCounter, 10);
+
+//				  check if all the received numbers are valid to set for alarm
+				  Hstr[0] = (char)Buffer[0];
+				  Hstr[1] = (char)Buffer[1];
+				  SetHours = atoi(Hstr);
+				  if ( (SetHours >= 0) & (SetHours <= 23) )
+				  {
+					  Mstr[0] = (char)Buffer[2];
+					  Mstr[1] = (char)Buffer[3];
+					  SetMinutes = atoi(Mstr);
+					  if ( (SetMinutes >= 0) & (SetMinutes <= 59) )
+					  {
+						  Dstr[0] = (char)Buffer[4];
+						  Dstr[1] = (char)Buffer[5];
+						  SetDate = atoi(Dstr);
+						  if ( (SetDate >= 1) & (SetDate <= 30) )
+						  SetTheAlarm = 1;
+					  }
+				  }
+
 			  }
 			  continue;
 		  }
