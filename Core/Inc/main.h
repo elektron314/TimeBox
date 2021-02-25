@@ -68,6 +68,8 @@ void Error_Handler(void);
 #define LED0_GPIO_Port GPIOF
 #define LED1_Pin GPIO_PIN_10
 #define LED1_GPIO_Port GPIOF
+#define OpenDoor_Pin GPIO_PIN_12
+#define OpenDoor_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */

@@ -50,27 +50,33 @@ UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
 
+RTC_AlarmTypeDef gAlarm;
+RTC_DateTypeDef gDate;
+RTC_TimeTypeDef gTime;
+
 char time[9];
 char date[9];
 
 uint8_t alarm;
 uint8_t Alarmed;
+uint8_t OpenMessage[5] = "open\0";
 
 volatile uint8_t GetAlarm;
 
-volatile uint8_t SetTheAlarm;
-volatile uint8_t SetHours, SetMinutes, SetDate;
-volatile uint8_t AlarmSet;
-uint8_t GetHours, GetMinutes;
-uint8_t ShowMeHours, ShowMeMin, ShowMeDate;
+volatile uint8_t SetAlarm;
+volatile uint8_t SetHours, SetMinutes, SetDate, SetSeconds;
+volatile uint8_t AlarmSetFlag;
+//uint8_t IsAlarmSetBeforeNowFlag;
+uint8_t GetAlarmHours, GetAlarmMinutes; // this is only for debug and should be deleted in release compilation
 
-//volatile int8_t receiveBuf;
 uint8_t CharCounter;
-uint8_t MessageLimitLength = 5;
+//uint8_t MessageLimitLength = 5;
 uint32_t StartIgnoringTimer;
 uint8_t IgnoringFlag;
 uint8_t Buffer[1];
 uint32_t NowTime;
+
+uint8_t K0isPressed, K1isPressed;
 
 /* USER CODE END PV */
 
@@ -100,7 +106,6 @@ uint8_t TurnDecIntoHex(uint8_t dec)
 
 void HappyToggling(uint8_t longetivity)
 {
-//	uint8_t longetivity
 	uint8_t TogglingDelay = 0;
 	for (TogglingDelay = 0; TogglingDelay < longetivity; TogglingDelay++)
 	{
@@ -114,8 +119,8 @@ void SetTime(void)
 	RTC_TimeTypeDef sTime;
 	RTC_DateTypeDef sDate;
 	/** Initialize RTC and set the Time and Date*/
-	sTime.Hours = 0x22;
-	sTime.Minutes = 0x14;
+	sTime.Hours = 0x23;
+	sTime.Minutes = 0x25;
 	sTime.Seconds = 0x0;
 	sTime.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
 	sTime.StoreOperation = RTC_STOREOPERATION_RESET;
@@ -123,9 +128,9 @@ void SetTime(void)
 	{
 		Error_Handler();
 	}
-	sDate.WeekDay = RTC_WEEKDAY_TUESDAY;
+	sDate.WeekDay = RTC_WEEKDAY_THURSDAY;
 	sDate.Month = RTC_MONTH_FEBRUARY;
-	sDate.Date = 0x23;
+	sDate.Date = 0x25;
 	sDate.Year = 0x21;
 
 	if (HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BCD) != HAL_OK)
@@ -136,13 +141,13 @@ void SetTime(void)
 	HAL_RTCEx_BKUPWrite(&hrtc, RTC_BKP_DR1, 0x32F2);
 }
 
-void SetAlarm(uint8_t SetInHours, uint8_t SetInMinutes, uint8_t SetInDate)
+void SetAlarmFunc(uint8_t SetInHours, uint8_t SetInMinutes, uint8_t SetInDate, uint8_t SetInSeconds)
 {
 	RTC_AlarmTypeDef sAlarm;
 
 	sAlarm.AlarmTime.Hours = TurnDecIntoHex(SetInHours);
 	sAlarm.AlarmTime.Minutes = TurnDecIntoHex(SetInMinutes);
-	sAlarm.AlarmTime.Seconds = 0x0;
+	sAlarm.AlarmTime.Seconds = TurnDecIntoHex(SetInSeconds);
 	sAlarm.AlarmTime.SubSeconds = 0x0;
 	sAlarm.AlarmTime.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
 	sAlarm.AlarmTime.StoreOperation = RTC_STOREOPERATION_RESET;
@@ -158,14 +163,14 @@ void SetAlarm(uint8_t SetInHours, uint8_t SetInMinutes, uint8_t SetInDate)
 	}
 }
 
-void GetTimeDate (void)
+void GetTimeDate(void)
 {
-	RTC_DateTypeDef gDate;
-	RTC_TimeTypeDef gTime;
+//	RTC_DateTypeDef gDate;
+//	RTC_TimeTypeDef gTime;
 
 	/* Get the RTC current Time */
 	HAL_RTC_GetTime(&hrtc, &gTime, RTC_FORMAT_BCD);
-	/* Get the RTC Curret Date */
+	/* Get the RTC current Date */
 	HAL_RTC_GetDate(&hrtc, &gDate, RTC_FORMAT_BCD);
 
 	/* Display time Format: hh:mm:ss */
@@ -180,10 +185,95 @@ void HAL_RTC_AlarmAEventCallback(RTC_HandleTypeDef *hrtc)
 	alarm = 1;
 }
 
+uint8_t IsAlarmSetBeforeNow(void)
+{
+	GetTimeDate();
+	HAL_RTC_GetAlarm(&hrtc, &gAlarm, RTC_ALARM_A, RTC_FORMAT_BCD);
+	if (gAlarm.AlarmTime.Seconds < gDate.Month)
+	{
+		return 1;
+	} else if (gAlarm.AlarmTime.Seconds > gDate.Month)
+	{
+		return 0;
+	} else
+	{
+		if (gAlarm.AlarmDateWeekDay < gDate.Date)
+		{
+			return 1;
+		} else if (gAlarm.AlarmDateWeekDay > gDate.Date)
+		{
+			return 0;
+		} else
+		{
+			if (gAlarm.AlarmTime.Hours < gTime.Hours)
+			{
+				return 1;
+			} else if (gAlarm.AlarmTime.Hours > gTime.Hours)
+			{
+				return 0;
+			} else
+			{
+				if (gAlarm.AlarmTime.Minutes < gTime.Minutes)
+				{
+					return 1;
+				} else if (gAlarm.AlarmTime.Minutes > gTime.Minutes)
+				{
+					return 0;
+				} else
+				{
+					return 1;
+				}
+			}
+		}
+	}
+}
+
+void Rewind5Sec(void)
+{
+	if (K0isPressed)
+	{
+		RTC_TimeTypeDef gTime;
+
+		HAL_RTC_GetTime(&hrtc, &gTime, RTC_FORMAT_BCD);
+		gTime.Seconds = TurnDecIntoHex(TurnHexIntoDec(gTime.Seconds)-5);
+		gTime.Hours = TurnDecIntoHex(TurnHexIntoDec(gTime.Hours)-1);
+
+		if (HAL_RTC_SetTime(&hrtc, &gTime, RTC_FORMAT_BCD) != HAL_OK)
+		{
+		  Error_Handler();
+		}
+
+		HAL_RTCEx_BKUPWrite(&hrtc, RTC_BKP_DR1, 0x32F2);
+
+		K0isPressed = 0;
+	}
+}
+
+void Forwardd5Sec(void)
+{
+	if (K1isPressed)
+	{
+		RTC_TimeTypeDef gTime;
+
+		HAL_RTC_GetTime(&hrtc, &gTime, RTC_FORMAT_BCD);
+		gTime.Seconds = TurnDecIntoHex(TurnHexIntoDec(gTime.Seconds)+5);
+		gTime.Hours = TurnDecIntoHex(TurnHexIntoDec(gTime.Hours)-1);
+
+		if (HAL_RTC_SetTime(&hrtc, &gTime, RTC_FORMAT_BCD) != HAL_OK)
+		{
+		  Error_Handler();
+		}
+
+		HAL_RTCEx_BKUPWrite(&hrtc, RTC_BKP_DR1, 0x32F2);
+		K1isPressed = 0;
+	}
+}
+
 void ToDoOnAlarm (void)
 {
-	HappyToggling(75);
 	Alarmed = 1;
+	AlarmSetFlag = 0;
+	HappyToggling(100);
 }
 
   /* USER CODE END 6 */
@@ -228,9 +318,15 @@ int main(void)
 	  SetTime();
   }
 
-  RTC_AlarmTypeDef gAlarm;
-
   __HAL_UART_ENABLE_IT(&huart1, UART_IT_RXNE);
+
+  if (IsAlarmSetBeforeNow())
+  {
+	  HAL_GPIO_WritePin(OpenDoor_GPIO_Port, OpenDoor_Pin, RESET);
+	  HAL_UART_Transmit(&huart1, OpenMessage, 4, 10);
+	  HAL_GPIO_WritePin(OpenDoor_GPIO_Port, OpenDoor_Pin, SET);
+
+  }
 
   /* USER CODE END 2 */
 
@@ -249,14 +345,11 @@ int main(void)
 	  HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
 	  HAL_Delay(200);
 
-	  if (SetTheAlarm)
+	  if (SetAlarm)
 	  {
-		  SetAlarm(SetHours, SetMinutes, SetDate);
-		  ShowMeHours = SetHours;
-		  ShowMeMin = SetMinutes;
-		  ShowMeDate = SetDate;
-		  AlarmSet = 1;
-		  SetTheAlarm = 0;
+		  SetAlarmFunc(SetHours, SetMinutes, SetDate, SetSeconds);
+		  AlarmSetFlag = 1;
+		  SetAlarm = 0;
 	  }
 
 	  GetTimeDate();
@@ -266,20 +359,20 @@ int main(void)
 		  GetAlarm = 0;
 		  Alarmed = 0;
 		  HAL_RTC_GetAlarm(&hrtc, &gAlarm, RTC_ALARM_A, RTC_FORMAT_BCD);
-		  GetHours = TurnHexIntoDec(gAlarm.AlarmTime.Hours);
-		  GetMinutes = TurnHexIntoDec(gAlarm.AlarmTime.Minutes);
+		  GetAlarmHours = TurnHexIntoDec(gAlarm.AlarmTime.Hours);
+		  GetAlarmMinutes = TurnHexIntoDec(gAlarm.AlarmTime.Minutes);
 	  }
 
 	  if (alarm)
 	  {
 		  ToDoOnAlarm();
 		  alarm = 0;
-		  AlarmSet = 0;
 	  }
 
 //	  1000 milliseconds is just a time, taken from nothing, during that RX interrupts will be disabled
 	  NowTime = HAL_GetTick();
 	  if ((IgnoringFlag == 1) && ((NowTime - StartIgnoringTimer) > 1000))
+//	  if (NowTime - StartIgnoringTimer > 1000)
 	  {
 		  CharCounter = 0;
 		  IgnoringFlag = 0;
@@ -289,6 +382,9 @@ int main(void)
 //		  happy toggling after starting receive again
 		  HappyToggling(50);
 	  }
+
+	  Rewind5Sec();
+	  Forwardd5Sec();
   }
   /* USER CODE END 3 */
 }
@@ -467,10 +563,14 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOF_CLK_ENABLE();
   __HAL_RCC_GPIOH_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOF, LED0_Pin|LED1_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(OpenDoor_GPIO_Port, OpenDoor_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pins : KEY1_Pin KEY0_Pin */
   GPIO_InitStruct.Pin = KEY1_Pin|KEY0_Pin;
@@ -484,6 +584,13 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : OpenDoor_Pin */
+  GPIO_InitStruct.Pin = OpenDoor_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(OpenDoor_GPIO_Port, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
   HAL_NVIC_SetPriority(EXTI3_IRQn, 2, 0);

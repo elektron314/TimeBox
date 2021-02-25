@@ -54,29 +54,30 @@ uint8_t JitterButtonK1 = 0;
 
 RTC_HandleTypeDef hrtc;
 
-uint8_t ShowMeHours, ShowMeMin, ShowMeDate;
+//uint8_t ShowMeHours, ShowMeMin, ShowMeDate;
 
 uint8_t RxData[1];
 extern uint8_t CharCounter;
 extern uint8_t Buffer[];
-extern uint8_t MessageLimitLength;
+//extern uint8_t MessageLimitLength;
 extern uint32_t StartIgnoringTimer;
 extern uint8_t IgnoringFlag;
-uint8_t OpenMessage[5] = "open\0";
-uint8_t SetMessage[7] = "hhmmdd\0";
+extern uint8_t OpenMessage[];
+uint8_t SetMessage[9] = "hhmmddss\0";
 
-uint8_t Hstr[2], Mstr[2], Dstr[2];
-extern uint8_t SetTheAlarm;
-extern uint8_t SetHours, SetMinutes, SetDate;
+uint8_t Hstr[2], Mstr[2], Dstr[2], Sstr[2];
+extern uint8_t SetAlarm;
+extern uint8_t SetHours, SetMinutes, SetDate, SetSeconds;
+
+extern uint8_t K0isPressed, K1isPressed;
 
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN PFP */
 
-extern uint8_t TurnHexIntoDec(uint8_t hex);
-extern uint8_t TurnDecIntoHex(uint8_t hex);
-//extern void HappyToggling;
+//extern uint8_t TurnHexIntoDec(uint8_t hex);
+//extern uint8_t TurnDecIntoHex(uint8_t hex);
 
 /* USER CODE END PFP */
 
@@ -237,28 +238,13 @@ void EXTI3_IRQHandler(void)
 {
   /* USER CODE BEGIN EXTI3_IRQn 0 */
 
+//	jitter solver
 	if (HAL_GetTick() - JitterButtonK1 > 300)
 	{
 		JitterButtonK1 = HAL_GetTick();
 
 //		here is our action on KEY1 button
-		RTC_TimeTypeDef gTime;
-//		RTC_TimeTypeDef sTime;
-
-		HAL_RTC_GetTime(&hrtc, &gTime, RTC_FORMAT_BCD);
-//		sTime.Hours = gTime.Hours;
-//		sTime.Minutes = gTime.Minutes;
-		gTime.Seconds = 0x30;
-//		gTime.Seconds = TurnDecIntoHex(TurnHexIntoDec(gTime.Seconds)-7);
-
-//		if (HAL_RTC_SetTime(&hrtc, &gTime, RTC_FORMAT_BCD) != HAL_OK)
-//		{
-//		  Error_Handler();
-//		}
-
-//		HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
-//		HAL_Delay(1000);
-//		HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+		K1isPressed = 1;
 	}
 
   /* USER CODE END EXTI3_IRQn 0 */
@@ -275,33 +261,13 @@ void EXTI4_IRQHandler(void)
 {
   /* USER CODE BEGIN EXTI4_IRQn 0 */
 
+//	jitter solver
 	if (HAL_GetTick() - JitterButtonK0 > 300)
 	{
 		JitterButtonK0 = HAL_GetTick();
 
-//		here is our action on KEY1 button
-		RTC_TimeTypeDef gTime;
-//		RTC_TimeTypeDef sTime;
-
-		HAL_RTC_GetTime(&hrtc, &gTime, RTC_FORMAT_BCD);
-//		sTime.Hours = gTime.Hours;
-//		sTime.Minutes = gTime.Minutes;
-		gTime.Seconds = 0;
-		ShowMeHours = gTime.Hours;
-		ShowMeMin = gTime.Minutes;
-//		ShowMeDate;
-//		gTime.Seconds = TurnDecIntoHex(TurnHexIntoDec(gTime.Seconds)+3);
-
-//		if (HAL_RTC_SetTime(&hrtc, &gTime, RTC_FORMAT_BCD) != HAL_OK)
-//		{
-//		  Error_Handler();
-//		}
-//
-//		HAL_RTCEx_BKUPWrite(&hrtc, RTC_BKP_DR1, 0x32F2);
-
-//		HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin);
-//		HAL_Delay(1000);
-//		HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin);
+//		here is our action on KEY0 button
+		K0isPressed = 1;
 	}
 
   /* USER CODE END EXTI4_IRQn 0 */
@@ -352,7 +318,7 @@ void USART1_IRQHandler(void)
 	  uint8_t loop;
 	  for (loop = 0; loop < CharCounter; loop++)
 	  {
-		  if isdigit((unsigned char)Buffer[loop])
+		  if isdigit((uint8_t)Buffer[loop])
 		  {
 			  if (loop == CharCounter-1)
 			  {
@@ -361,21 +327,26 @@ void USART1_IRQHandler(void)
 				  HAL_UART_Transmit(&huart1, Buffer, CharCounter, 10);
 
 //				  check if all the received numbers are valid to set for alarm
-				  Hstr[0] = (char)Buffer[0];
-				  Hstr[1] = (char)Buffer[1];
+				  Hstr[0] = (uint8_t)Buffer[0];
+				  Hstr[1] = (uint8_t)Buffer[1];
 				  SetHours = atoi(Hstr);
-				  if ( (SetHours >= 0) & (SetHours <= 23) )
+				  if ( (SetHours >= 0) && (SetHours <= 23) )
 				  {
-					  Mstr[0] = (char)Buffer[2];
-					  Mstr[1] = (char)Buffer[3];
+					  Mstr[0] = (uint8_t)Buffer[2];
+					  Mstr[1] = (uint8_t)Buffer[3];
 					  SetMinutes = atoi(Mstr);
-					  if ( (SetMinutes >= 0) & (SetMinutes <= 59) )
+					  if ( (SetMinutes >= 0) && (SetMinutes <= 59) )
 					  {
-						  Dstr[0] = (char)Buffer[4];
-						  Dstr[1] = (char)Buffer[5];
+						  Dstr[0] = (uint8_t)Buffer[4];
+						  Dstr[1] = (uint8_t)Buffer[5];
 						  SetDate = atoi(Dstr);
-						  if ( (SetDate >= 1) & (SetDate <= 30) )
-						  SetTheAlarm = 1;
+						  if ( (SetDate >= 1) && (SetDate <= 30) )
+						  {
+							  Sstr[0] = (uint8_t)Buffer[6];
+							  Sstr[1] = (uint8_t)Buffer[7];
+							  SetSeconds = atoi(Sstr);
+							  SetAlarm = 1;
+						  }
 					  }
 				  }
 
