@@ -25,6 +25,7 @@
 
 #include <stdio.h>
 #include <math.h>
+#include <string.h>
 
 /* USER CODE END Includes */
 
@@ -58,22 +59,17 @@ char time[9];
 char date[9];
 
 uint8_t alarm;
-uint8_t Alarmed;
-uint8_t OpenMessage[5] = "open\0";
-
-volatile uint8_t GetAlarm;
 
 volatile uint8_t SetAlarm;
 volatile uint8_t SetHours, SetMinutes, SetDate, SetSeconds;
-volatile uint8_t AlarmSetFlag;
-//uint8_t IsAlarmSetBeforeNowFlag;
-uint8_t GetAlarmHours, GetAlarmMinutes; // this is only for debug and should be deleted in release compilation
 
 uint8_t CharCounter;
-//uint8_t MessageLimitLength = 5;
 uint32_t StartIgnoringTimer;
 uint8_t IgnoringFlag;
 uint8_t Buffer[1];
+uint8_t OpenMessage[] = "open\0";
+uint8_t NotSetMessage[] = "not set\0";
+uint8_t AlarmIsOn[] = "alarm is on";
 uint32_t NowTime;
 
 uint8_t K0isPressed, K1isPressed;
@@ -165,9 +161,6 @@ void SetAlarmFunc(uint8_t SetInHours, uint8_t SetInMinutes, uint8_t SetInDate, u
 
 void GetTimeDate(void)
 {
-//	RTC_DateTypeDef gDate;
-//	RTC_TimeTypeDef gTime;
-
 	/* Get the RTC current Time */
 	HAL_RTC_GetTime(&hrtc, &gTime, RTC_FORMAT_BCD);
 	/* Get the RTC current Date */
@@ -228,6 +221,49 @@ uint8_t IsAlarmSetBeforeNow(void)
 	}
 }
 
+uint8_t IsNewAlarmMoreForward(void)
+{
+	GetTimeDate();
+	HAL_RTC_GetAlarm(&hrtc, &gAlarm, RTC_ALARM_A, RTC_FORMAT_BCD);
+	if (gAlarm.AlarmTime.Seconds < SetSeconds)
+	{
+		return 1;
+	} else if (gAlarm.AlarmTime.Seconds > SetSeconds)
+	{
+		return 0;
+	} else
+	{
+		if (gAlarm.AlarmDateWeekDay < SetDate)
+		{
+			return 1;
+		} else if (gAlarm.AlarmDateWeekDay > SetDate)
+		{
+			return 0;
+		} else
+		{
+			if (gAlarm.AlarmTime.Hours < SetHours)
+			{
+				return 1;
+			} else if (gAlarm.AlarmTime.Hours > SetHours)
+			{
+				return 0;
+			} else
+			{
+				if (gAlarm.AlarmTime.Minutes < SetMinutes)
+				{
+					return 1;
+				} else if (gAlarm.AlarmTime.Minutes > SetMinutes)
+				{
+					return 0;
+				} else
+				{
+					return 1;
+				}
+			}
+		}
+	}
+}
+
 void Rewind5Sec(void)
 {
 	if (K0isPressed)
@@ -269,10 +305,16 @@ void Forwardd5Sec(void)
 	}
 }
 
-void ToDoOnAlarm (void)
+void OpenTheDoor(void)
 {
-	Alarmed = 1;
-	AlarmSetFlag = 0;
+	HAL_GPIO_WritePin(OpenDoor_GPIO_Port, OpenDoor_Pin, RESET);
+	HAL_Delay(200);
+	HAL_GPIO_WritePin(OpenDoor_GPIO_Port, OpenDoor_Pin, SET);
+}
+
+void ToDoOnAlarm(void)
+{
+	OpenTheDoor();
 	HappyToggling(100);
 }
 
@@ -322,10 +364,7 @@ int main(void)
 
   if (IsAlarmSetBeforeNow())
   {
-	  HAL_GPIO_WritePin(OpenDoor_GPIO_Port, OpenDoor_Pin, RESET);
-	  HAL_UART_Transmit(&huart1, OpenMessage, 4, 10);
-	  HAL_GPIO_WritePin(OpenDoor_GPIO_Port, OpenDoor_Pin, SET);
-
+	  OpenTheDoor();
   }
 
   /* USER CODE END 2 */
@@ -347,21 +386,22 @@ int main(void)
 
 	  if (SetAlarm)
 	  {
-		  SetAlarmFunc(SetHours, SetMinutes, SetDate, SetSeconds);
-		  AlarmSetFlag = 1;
+		  if (IsNewAlarmMoreForward())
+		  {
+			  HAL_UART_Transmit(&huart1, Buffer, 8, 10);
+			  HAL_Delay(5000);
+			  SetAlarmFunc(SetHours, SetMinutes, SetDate, SetSeconds);
+			  SetAlarm = 0;
+		  } else
+		  {
+			  HAL_RTC_GetAlarm(&hrtc, &gAlarm, RTC_ALARM_A, RTC_FORMAT_BCD);
+			  sprintf(AlarmIsOn, "%s %02x:%02x of %02x.%02x", AlarmIsOn, gAlarm.AlarmTime.Hours, gAlarm.AlarmTime.Minutes, gAlarm.AlarmTime.Seconds, gAlarm.AlarmDateWeekDay);
+			  HAL_UART_Transmit(&huart1, AlarmIsOn, 26, 26);
+		  }
 		  SetAlarm = 0;
 	  }
 
 	  GetTimeDate();
-
-	  if (GetAlarm)
-	  {
-		  GetAlarm = 0;
-		  Alarmed = 0;
-		  HAL_RTC_GetAlarm(&hrtc, &gAlarm, RTC_ALARM_A, RTC_FORMAT_BCD);
-		  GetAlarmHours = TurnHexIntoDec(gAlarm.AlarmTime.Hours);
-		  GetAlarmMinutes = TurnHexIntoDec(gAlarm.AlarmTime.Minutes);
-	  }
 
 	  if (alarm)
 	  {
@@ -378,8 +418,6 @@ int main(void)
 		  IgnoringFlag = 0;
 		  __HAL_UART_CLEAR_OREFLAG(&huart1);
 		  __HAL_UART_ENABLE_IT(&huart1, UART_IT_RXNE);
-
-//		  happy toggling after starting receive again
 		  HappyToggling(50);
 	  }
 

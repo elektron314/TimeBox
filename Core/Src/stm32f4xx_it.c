@@ -76,6 +76,7 @@ extern uint8_t K0isPressed, K1isPressed;
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN PFP */
 
+extern uint8_t IsAlarmSetBeforeNow(void);
 //extern uint8_t TurnHexIntoDec(uint8_t hex);
 //extern uint8_t TurnDecIntoHex(uint8_t hex);
 
@@ -304,7 +305,13 @@ void USART1_IRQHandler(void)
 			  {
 				  IgnoringFlag = 1;
 				  __HAL_UART_DISABLE_IT(&huart1, UART_IT_RXNE);
-				  HAL_UART_Transmit(&huart1, Buffer, CharCounter, 10);
+				  if (IsAlarmSetBeforeNow())
+				  {
+					  HAL_GPIO_WritePin(OpenDoor_GPIO_Port, OpenDoor_Pin, RESET);
+					  HAL_UART_Transmit(&huart1, Buffer, CharCounter, 10);
+					  HAL_GPIO_WritePin(OpenDoor_GPIO_Port, OpenDoor_Pin, SET);
+				  }
+
 			  }
 			  continue;
 		  }
@@ -324,7 +331,7 @@ void USART1_IRQHandler(void)
 			  {
 				  IgnoringFlag = 1;
 				  __HAL_UART_DISABLE_IT(&huart1, UART_IT_RXNE);
-				  HAL_UART_Transmit(&huart1, Buffer, CharCounter, 10);
+//				  HAL_UART_Transmit(&huart1, Buffer, CharCounter, 10);
 
 //				  check if all the received numbers are valid to set for alarm
 				  Hstr[0] = (uint8_t)Buffer[0];

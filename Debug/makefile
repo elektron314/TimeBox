@@ -1,5 +1,6 @@
 ################################################################################
 # Automatically-generated file. Do not edit!
+# Toolchain: GNU Tools for STM32 (9-2020-q2-update)
 ################################################################################
 
 -include ../makefile.init
@@ -28,6 +29,12 @@ endif
 
 -include ../makefile.defs
 
+OPTIONAL_TOOL_DEPS := \
+$(wildcard ../makefile.defs) \
+$(wildcard ../makefile.init) \
+$(wildcard ../makefile.targets) \
+
+
 BUILD_ARTIFACT_NAME := TimeBox
 BUILD_ARTIFACT_EXTENSION := elf
 BUILD_ARTIFACT_PREFIX := 
@@ -54,22 +61,22 @@ all: main-build
 main-build: TimeBox.elf secondary-outputs
 
 # Tool invocations
-TimeBox.elf: $(OBJS) $(USER_OBJS) /Users/el314/Disk-O/mail.ru-348330048-4/Programming/TimeBox/STM32F407ZETX_FLASH.ld
+TimeBox.elf: $(OBJS) $(USER_OBJS) /Users/el314/Disk-O/mail.ru-348330048-4/Programming/TimeBox/STM32F407ZETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
 	arm-none-eabi-gcc -o "TimeBox.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"/Users/el314/Disk-O/mail.ru-348330048-4/Programming/TimeBox/STM32F407ZETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="TimeBox.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
-default.size.stdout: $(EXECUTABLES)
+default.size.stdout: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
 	arm-none-eabi-size  $(EXECUTABLES)
 	@echo 'Finished building: $@'
 	@echo ' '
 
-TimeBox.list: $(EXECUTABLES)
+TimeBox.list: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
 	arm-none-eabi-objdump -h -S $(EXECUTABLES) > "TimeBox.list"
 	@echo 'Finished building: $@'
 	@echo ' '
 
-TimeBox.bin: $(EXECUTABLES)
+TimeBox.bin: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
 	arm-none-eabi-objcopy  -O binary $(EXECUTABLES) "TimeBox.bin"
 	@echo 'Finished building: $@'
 	@echo ' '
