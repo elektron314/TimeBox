@@ -65,11 +65,17 @@ volatile uint8_t SetHours, SetMinutes, SetDate, SetSeconds;
 
 uint8_t CharCounter;
 uint32_t StartIgnoringTimer;
+uint32_t MessageTimer;
 uint8_t IgnoringFlag;
 uint8_t Buffer[1];
-uint8_t OpenMessage[] = "open\0";
-uint8_t NotSetMessage[] = "not set\0";
-uint8_t AlarmIsOn[] = "alarm is on";
+
+//uint8_t NotSetMessage[] = "not set\0";
+uint8_t Message[30];
+uint8_t * Message2;
+uint8_t * Message3;
+uint8_t * Message4;
+uint8_t AlarmIsAlreadyOn[] = "Alarm is already on\0";
+uint8_t AlarmExpired[] = "You can't set expired alarm\0";
 uint32_t NowTime;
 
 uint8_t K0isPressed, K1isPressed;
@@ -221,47 +227,84 @@ uint8_t IsAlarmSetBeforeNow(void)
 	}
 }
 
-uint8_t IsNewAlarmMoreForward(void)
+uint8_t IsNewAlarmMoreFresh(void)
 {
-	GetTimeDate();
-	HAL_RTC_GetAlarm(&hrtc, &gAlarm, RTC_ALARM_A, RTC_FORMAT_BCD);
-	if (gAlarm.AlarmTime.Seconds < SetSeconds)
-	{
-		return 1;
-	} else if (gAlarm.AlarmTime.Seconds > SetSeconds)
-	{
-		return 0;
-	} else
-	{
-		if (gAlarm.AlarmDateWeekDay < SetDate)
+		HAL_RTC_GetAlarm(&hrtc, &gAlarm, RTC_ALARM_A, RTC_FORMAT_BCD);
+		if (gAlarm.AlarmTime.Seconds < TurnDecIntoHex(SetSeconds))
 		{
 			return 1;
-		} else if (gAlarm.AlarmDateWeekDay > SetDate)
+		} else if (gAlarm.AlarmTime.Seconds > TurnDecIntoHex(SetSeconds))
 		{
 			return 0;
 		} else
 		{
-			if (gAlarm.AlarmTime.Hours < SetHours)
+			if (gAlarm.AlarmDateWeekDay < TurnDecIntoHex(SetDate))
 			{
 				return 1;
-			} else if (gAlarm.AlarmTime.Hours > SetHours)
+			} else if (gAlarm.AlarmDateWeekDay > TurnDecIntoHex(SetDate))
 			{
 				return 0;
 			} else
 			{
-				if (gAlarm.AlarmTime.Minutes < SetMinutes)
+				if (gAlarm.AlarmTime.Hours < TurnDecIntoHex(SetHours))
 				{
 					return 1;
-				} else if (gAlarm.AlarmTime.Minutes > SetMinutes)
+				} else if (gAlarm.AlarmTime.Hours > TurnDecIntoHex(SetHours))
 				{
 					return 0;
 				} else
 				{
-					return 1;
+					if (gAlarm.AlarmTime.Minutes < TurnDecIntoHex(SetMinutes))
+					{
+						return 1;
+					} else if (gAlarm.AlarmTime.Minutes >= TurnDecIntoHex(SetMinutes))
+					{
+						return 0;
+					}
 				}
 			}
 		}
-	}
+}
+
+uint8_t IsNewAlarmAfterNow(void)
+{
+		GetTimeDate();
+		HAL_RTC_GetTime(&hrtc, &gTime, RTC_FORMAT_BCD);
+		HAL_RTC_GetDate(&hrtc, &gDate, RTC_FORMAT_BCD);
+		if (TurnDecIntoHex(SetSeconds) > gDate.Month)
+		{
+			return 1;
+		} else if (TurnDecIntoHex(SetSeconds) < gDate.Month)
+		{
+			return 0;
+		} else
+		{
+			if (TurnDecIntoHex(SetDate) > gDate.Date)
+			{
+				return 1;
+			} else if (TurnDecIntoHex(SetDate) < gDate.Date)
+			{
+				return 0;
+			} else
+			{
+				if (TurnDecIntoHex(SetHours) > gTime.Hours)
+				{
+					return 1;
+				} else if (TurnDecIntoHex(SetHours) < gTime.Hours)
+				{
+					return 0;
+				} else
+				{
+					if (TurnDecIntoHex(SetMinutes) > gTime.Minutes)
+					{
+						return 1;
+					} else if (TurnDecIntoHex(SetMinutes) <= gTime.Minutes)
+					{
+						return 0;
+					}
+				}
+			}
+		}
 }
 
 void Rewind5Sec(void)
@@ -272,7 +315,7 @@ void Rewind5Sec(void)
 
 		HAL_RTC_GetTime(&hrtc, &gTime, RTC_FORMAT_BCD);
 		gTime.Seconds = TurnDecIntoHex(TurnHexIntoDec(gTime.Seconds)-5);
-		gTime.Hours = TurnDecIntoHex(TurnHexIntoDec(gTime.Hours)-1);
+		gTime.Hours = TurnDecIntoHex(TurnHexIntoDec(gTime.Hours)+0);
 
 		if (HAL_RTC_SetTime(&hrtc, &gTime, RTC_FORMAT_BCD) != HAL_OK)
 		{
@@ -293,7 +336,7 @@ void Forwardd5Sec(void)
 
 		HAL_RTC_GetTime(&hrtc, &gTime, RTC_FORMAT_BCD);
 		gTime.Seconds = TurnDecIntoHex(TurnHexIntoDec(gTime.Seconds)+5);
-		gTime.Hours = TurnDecIntoHex(TurnHexIntoDec(gTime.Hours)-1);
+		gTime.Hours = TurnDecIntoHex(TurnHexIntoDec(gTime.Hours)+0);
 
 		if (HAL_RTC_SetTime(&hrtc, &gTime, RTC_FORMAT_BCD) != HAL_OK)
 		{
@@ -315,7 +358,12 @@ void OpenTheDoor(void)
 void ToDoOnAlarm(void)
 {
 	OpenTheDoor();
-	HappyToggling(100);
+	HappyToggling(150);
+}
+
+void DeleteAlarm(void)
+{
+	SetAlarmFunc(0,0,1,1);
 }
 
   /* USER CODE END 6 */
@@ -335,8 +383,8 @@ int main(void)
 
   /* MCU Configuration--------------------------------------------------------*/
 
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
+  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
 
   /* USER CODE BEGIN Init */
 
@@ -386,18 +434,28 @@ int main(void)
 
 	  if (SetAlarm)
 	  {
-		  if (IsNewAlarmMoreForward())
+		  if (IsNewAlarmMoreFresh())
 		  {
-			  HAL_UART_Transmit(&huart1, Buffer, 8, 10);
-			  HAL_Delay(5000);
-			  SetAlarmFunc(SetHours, SetMinutes, SetDate, SetSeconds);
-			  SetAlarm = 0;
+			  if (IsNewAlarmAfterNow())
+			  {
+				  sprintf(Message, "Set alarm to %02d:%02d of %02d.%02d\0",SetHours, SetMinutes, SetDate, SetSeconds);
+				  HAL_UART_Transmit(&huart1, Message, strlen(Message), strlen(Message));
+				  HappyToggling(100);
+//				  HAL_Delay(60000);
+				  SetAlarmFunc(SetHours, SetMinutes, SetDate, SetSeconds);
+			  } else
+			  {
+				  HAL_RTC_GetAlarm(&hrtc, &gAlarm, RTC_ALARM_A, RTC_FORMAT_BCD);
+//				  sprintf(AlarmIsAlreadyOn, "%s %02x:%02x of %02x.%02x", AlarmIsAlreadyOn, gAlarm.AlarmTime.Hours, gAlarm.AlarmTime.Minutes, gAlarm.AlarmTime.Seconds, gAlarm.AlarmDateWeekDay);
+				  HAL_UART_Transmit(&huart1, AlarmExpired, strlen(AlarmExpired), 29);
+//				  HAL_UART_Transmit(&huart1, AlarmIsAlreadyOn, strlen(AlarmIsAlreadyOn), 35);
+			  }
 		  } else
-		  {
-			  HAL_RTC_GetAlarm(&hrtc, &gAlarm, RTC_ALARM_A, RTC_FORMAT_BCD);
-			  sprintf(AlarmIsOn, "%s %02x:%02x of %02x.%02x", AlarmIsOn, gAlarm.AlarmTime.Hours, gAlarm.AlarmTime.Minutes, gAlarm.AlarmTime.Seconds, gAlarm.AlarmDateWeekDay);
-			  HAL_UART_Transmit(&huart1, AlarmIsOn, 26, 26);
-		  }
+			  sprintf(Message, "%s %02x:%02x of %02x.%02x\0", AlarmIsAlreadyOn, gAlarm.AlarmTime.Hours, gAlarm.AlarmTime.Minutes, gAlarm.AlarmTime.Seconds, gAlarm.AlarmDateWeekDay);
+//		  	  sprintf(Message2, "%s %02x:%02x of %02x.%02x\0", AlarmIsAlreadyOn, gAlarm.AlarmTime.Hours, gAlarm.AlarmTime.Minutes, gAlarm.AlarmTime.Seconds, gAlarm.AlarmDateWeekDay);
+//		  	  sprintf(*Message3, "%s %02x:%02x of %02x.%02x\0", AlarmIsAlreadyOn, gAlarm.AlarmTime.Hours, gAlarm.AlarmTime.Minutes, gAlarm.AlarmTime.Seconds, gAlarm.AlarmDateWeekDay);
+//		  	  sprintf(&Message4, "%s %02x:%02x of %02x.%02x\0", AlarmIsAlreadyOn, gAlarm.AlarmTime.Hours, gAlarm.AlarmTime.Minutes, gAlarm.AlarmTime.Seconds, gAlarm.AlarmDateWeekDay);
+			  HAL_UART_Transmit(&huart1, Message, strlen(Message), strlen(Message));
 		  SetAlarm = 0;
 	  }
 
@@ -411,14 +469,16 @@ int main(void)
 
 //	  1000 milliseconds is just a time, taken from nothing, during that RX interrupts will be disabled
 	  NowTime = HAL_GetTick();
-	  if ((IgnoringFlag == 1) && ((NowTime - StartIgnoringTimer) > 1000))
+//	  if (((IgnoringFlag == 1) || (NowTime - MessageTimer > 5000)) && ((NowTime - StartIgnoringTimer) > 1000))
+	  if ((CharCounter >= 8) && (NowTime - MessageTimer > 5000))
 //	  if (NowTime - StartIgnoringTimer > 1000)
 	  {
 		  CharCounter = 0;
-		  IgnoringFlag = 0;
+//		  IgnoringFlag = 0;
 		  __HAL_UART_CLEAR_OREFLAG(&huart1);
 		  __HAL_UART_ENABLE_IT(&huart1, UART_IT_RXNE);
-		  HappyToggling(50);
+		  HappyToggling(30);
+		  MessageTimer = 0;
 	  }
 
 	  Rewind5Sec();
