@@ -14,8 +14,8 @@ main.c:351:6:OpenTheDoor	8	static
 main.c:358:6:ToDoOnAlarm	8	static
 main.c:364:6:DeleteAlarm	8	static
 main.c:378:5:main	40	static
-main.c:494:6:SystemClock_Config	104	static
-main.c:542:13:MX_RTC_Init	8	static
-main.c:622:13:MX_USART1_UART_Init	8	static
-main.c:655:13:MX_GPIO_Init	56	static
-main.c:710:6:Error_Handler	4	static,ignoring_inline_asm
+main.c:498:6:SystemClock_Config	104	static
+main.c:546:13:MX_RTC_Init	8	static
+main.c:626:13:MX_USART1_UART_Init	8	static
+main.c:659:13:MX_GPIO_Init	56	static
+main.c:721:6:Error_Handler	4	static,ignoring_inline_asm

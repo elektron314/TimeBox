@@ -51,6 +51,8 @@
 
 RTC_HandleTypeDef hrtc;
 RTC_AlarmTypeDef gAlarm;
+RTC_DateTypeDef gDate;
+RTC_TimeTypeDef gTime;
 
 uint8_t JitterButtonK0 = 0;
 uint8_t JitterButtonK1 = 0;
@@ -357,8 +359,10 @@ void USART1_IRQHandler(void)
 			  {
 //				  __HAL_UART_DISABLE_IT(&huart1, UART_IT_RXNE);
 				  HAL_RTC_GetAlarm(&hrtc, &gAlarm, RTC_ALARM_A, RTC_FORMAT_BCD);
-				  sprintf(Message, "%s %02x:%02x of %02x.%02x", AlarmNowIsOn, gAlarm.AlarmTime.Hours, gAlarm.AlarmTime.Minutes, gAlarm.AlarmTime.Seconds, gAlarm.AlarmDateWeekDay);
-				  HAL_UART_Transmit(&huart1, Message, 26, 26);
+				  HAL_RTC_GetTime(&hrtc, &gTime, RTC_FORMAT_BCD);
+				  HAL_RTC_GetDate(&hrtc, &gDate, RTC_FORMAT_BCD);
+				  sprintf(Message, "%s %02x:%02x of %02x.%02x. Time now: %02x:%02x %02x.%02x", AlarmNowIsOn, gAlarm.AlarmTime.Hours, gAlarm.AlarmTime.Minutes, gAlarm.AlarmTime.Seconds, gAlarm.AlarmDateWeekDay, gTime.Hours, gTime.Minutes, gDate.Month, gDate.Date);
+				  HAL_UART_Transmit(&huart1, Message, strlen(Message), strlen(Message));
 			  }
 			  continue;
 		  }

@@ -70,6 +70,8 @@ void Error_Handler(void);
 #define LED1_GPIO_Port GPIOF
 #define OpenDoor_Pin GPIO_PIN_12
 #define OpenDoor_GPIO_Port GPIOB
+#define MagnetDoor_Pin GPIO_PIN_8
+#define MagnetDoor_GPIO_Port GPIOG
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */

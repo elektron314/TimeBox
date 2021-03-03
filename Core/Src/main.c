@@ -70,7 +70,7 @@ uint8_t IgnoringFlag;
 uint8_t Buffer[1];
 
 //uint8_t NotSetMessage[] = "not set\0";
-uint8_t Message[30];
+uint8_t Message[70];
 uint8_t * Message2;
 uint8_t * Message3;
 uint8_t * Message4;
@@ -383,8 +383,8 @@ int main(void)
 
   /* MCU Configuration--------------------------------------------------------*/
 
-  HAL_Init();
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+  HAL_Init();
 
   /* USER CODE BEGIN Init */
 
@@ -483,6 +483,10 @@ int main(void)
 
 	  Rewind5Sec();
 	  Forwardd5Sec();
+	  if (HAL_GPIO_ReadPin(MagnetDoor_GPIO_Port, MagnetDoor_Pin) == 0)
+	  {
+		  HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin);
+	  }
   }
   /* USER CODE END 3 */
 }
@@ -591,8 +595,8 @@ static void MX_RTC_Init(void)
 //  {
 //    Error_Handler();
 //  }
-  /** Enable the Alarm A
-  */
+//  /** Enable the Alarm A
+//  */
 //  sAlarm.AlarmTime.Hours = 0x0;
 //  sAlarm.AlarmTime.Minutes = 0x0;
 //  sAlarm.AlarmTime.Seconds = 0x0;
@@ -662,6 +666,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOF_CLK_ENABLE();
   __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOG_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
@@ -689,6 +694,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(OpenDoor_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : MagnetDoor_Pin */
+  GPIO_InitStruct.Pin = MagnetDoor_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(MagnetDoor_GPIO_Port, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
   HAL_NVIC_SetPriority(EXTI3_IRQn, 2, 0);
