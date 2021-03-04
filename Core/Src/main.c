@@ -58,31 +58,21 @@ RTC_TimeTypeDef gTime;
 char time[9];
 char date[9];
 
-uint8_t alarm;
-
-uint8_t SetAlarm;
+uint8_t AlarmRing = 0;
+uint32_t NowTime = 0;
+uint8_t SetAlarm = 0;
 uint8_t SetHours, SetMinutes, SetDate, SetSeconds;
-
-uint8_t CharCounter;
-uint32_t StartIgnoringTimer;
-uint32_t MessageTimer;
-uint8_t IgnoringFlag;
-uint8_t Buffer[1];
-
-//uint8_t NotSetMessage[] = "not set\0";
-uint8_t Message[70];
-uint8_t * Message2;
-uint8_t * Message3;
-uint8_t * Message4;
-uint8_t AlarmIsAlreadyOn[] = "Alarm is already on\0";
-uint8_t AlarmExpired[] = "You can't set expired alarm\0";
-uint8_t AlarmNowIsOn[] = "Alarm is on\0";
-uint32_t NowTime;
-uint8_t DeleteAlarmFlag;
-uint8_t GetAlarmFlag;
-
+uint8_t CharCounter = 0;
+uint32_t MessageTimer = 0;
+char Buffer[1];
+char Message[70];
+char AlarmIsAlreadyOn[] = "Alarm is already on\0";
+char AlarmExpired[] = "You can't set expired alarm\0";
+char AlarmNowIsOn[] = "Alarm is on\0";
+uint8_t DeleteAlarm = 0;
+uint8_t GetAlarm = 0;
 uint8_t K0isPressed, K1isPressed;
-uint8_t DoorIsLockedFlag = 1;
+uint8_t DoorIsOpenFlag = 1;
 
 /* USER CODE END PV */
 
@@ -189,7 +179,7 @@ void GetTimeDate(void)
 
 void HAL_RTC_AlarmAEventCallback(RTC_HandleTypeDef *hrtc)
 {
-	alarm = 1;
+	AlarmRing = 1;
 }
 
 uint8_t IsAlarmSetBeforeNow(void)
@@ -237,82 +227,78 @@ uint8_t IsAlarmSetBeforeNow(void)
 
 uint8_t IsNewAlarmMoreFresh(void)
 {
-		HAL_RTC_GetAlarm(&hrtc, &gAlarm, RTC_ALARM_A, RTC_FORMAT_BCD);
-		if (gAlarm.AlarmTime.Seconds < TurnDecIntoHex(SetSeconds))
+	HAL_RTC_GetAlarm(&hrtc, &gAlarm, RTC_ALARM_A, RTC_FORMAT_BCD);
+	if (gAlarm.AlarmTime.Seconds < TurnDecIntoHex(SetSeconds))
+	{
+		return 1;
+	} else if (gAlarm.AlarmTime.Seconds > TurnDecIntoHex(SetSeconds))
+	{
+		return 0;
+	} else
+	{
+		if (gAlarm.AlarmDateWeekDay < TurnDecIntoHex(SetDate))
 		{
 			return 1;
-		} else if (gAlarm.AlarmTime.Seconds > TurnDecIntoHex(SetSeconds))
+		} else if (gAlarm.AlarmDateWeekDay > TurnDecIntoHex(SetDate))
 		{
 			return 0;
 		} else
 		{
-			if (gAlarm.AlarmDateWeekDay < TurnDecIntoHex(SetDate))
+			if (gAlarm.AlarmTime.Hours < TurnDecIntoHex(SetHours))
 			{
 				return 1;
-			} else if (gAlarm.AlarmDateWeekDay > TurnDecIntoHex(SetDate))
+			} else if (gAlarm.AlarmTime.Hours > TurnDecIntoHex(SetHours))
 			{
 				return 0;
 			} else
 			{
-				if (gAlarm.AlarmTime.Hours < TurnDecIntoHex(SetHours))
+				if (gAlarm.AlarmTime.Minutes < TurnDecIntoHex(SetMinutes))
 				{
 					return 1;
-				} else if (gAlarm.AlarmTime.Hours > TurnDecIntoHex(SetHours))
-				{
+				} else if (gAlarm.AlarmTime.Minutes >= TurnDecIntoHex(SetMinutes))
 					return 0;
-				} else
-				{
-					if (gAlarm.AlarmTime.Minutes < TurnDecIntoHex(SetMinutes))
-					{
-						return 1;
-					} else if (gAlarm.AlarmTime.Minutes >= TurnDecIntoHex(SetMinutes))
-					{
-						return 0;
-					}
-				}
 			}
 		}
+	}
 }
 
 uint8_t IsNewAlarmAfterNow(void)
 {
-		GetTimeDate();
-		HAL_RTC_GetTime(&hrtc, &gTime, RTC_FORMAT_BCD);
-		HAL_RTC_GetDate(&hrtc, &gDate, RTC_FORMAT_BCD);
-		if (TurnDecIntoHex(SetSeconds) > gDate.Month)
+	GetTimeDate();
+	HAL_RTC_GetTime(&hrtc, &gTime, RTC_FORMAT_BCD);
+	HAL_RTC_GetDate(&hrtc, &gDate, RTC_FORMAT_BCD);
+	if (TurnDecIntoHex(SetSeconds) > gDate.Month)
+	{
+		return 1;
+	} else if (TurnDecIntoHex(SetSeconds) < gDate.Month)
+	{
+		return 0;
+	} else
+	{
+		if (TurnDecIntoHex(SetDate) > gDate.Date)
 		{
 			return 1;
-		} else if (TurnDecIntoHex(SetSeconds) < gDate.Month)
+		} else if (TurnDecIntoHex(SetDate) < gDate.Date)
 		{
 			return 0;
 		} else
 		{
-			if (TurnDecIntoHex(SetDate) > gDate.Date)
+			if (TurnDecIntoHex(SetHours) > gTime.Hours)
 			{
 				return 1;
-			} else if (TurnDecIntoHex(SetDate) < gDate.Date)
+			} else if (TurnDecIntoHex(SetHours) < gTime.Hours)
 			{
 				return 0;
 			} else
 			{
-				if (TurnDecIntoHex(SetHours) > gTime.Hours)
+				if (TurnDecIntoHex(SetMinutes) > gTime.Minutes)
 				{
 					return 1;
-				} else if (TurnDecIntoHex(SetHours) < gTime.Hours)
-				{
+				} else if (TurnDecIntoHex(SetMinutes) <= gTime.Minutes)
 					return 0;
-				} else
-				{
-					if (TurnDecIntoHex(SetMinutes) > gTime.Minutes)
-					{
-						return 1;
-					} else if (TurnDecIntoHex(SetMinutes) <= gTime.Minutes)
-					{
-						return 0;
-					}
-				}
 			}
 		}
+	}
 }
 
 void Rewind5Sec(void)
@@ -368,11 +354,6 @@ void ToDoOnAlarm(void)
 	OpenTheDoor();
 	HappyToggling(150);
 }
-
-//void DeleteAlarm(void)
-//{
-//	SetAlarmFunc(0,0,1,1);
-//}
 
   /* USER CODE END 6 */
 
@@ -440,45 +421,38 @@ int main(void)
 	  if (HAL_GPIO_ReadPin(MagnetDoor_GPIO_Port, MagnetDoor_Pin) == 0)
 	  {
 		  HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin);
-		  DoorIsLockedFlag = 1;
+		  DoorIsOpenFlag = 1;
 	  } else
-		  DoorIsLockedFlag = 0;
+		  DoorIsOpenFlag = 0;
 
 	  HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
 	  HAL_Delay(200);
 
 	  if (SetAlarm)
 	  {
-		  if (DoorIsLockedFlag)
+		  if (!DoorIsOpenFlag)
 		  {
 			  if (IsNewAlarmMoreFresh())
 			  {
 				  if (IsNewAlarmAfterNow())
 				  {
-					  sprintf(Message, "Set alarm to %02d:%02d of %02d.%02d\0",SetHours, SetMinutes, SetDate, SetSeconds);
-					  HAL_UART_Transmit(&huart1, Message, strlen(Message), strlen(Message));
+					  sprintf((char*)Message, "Set alarm to %02d:%02d of %02d.%02d",SetHours, SetMinutes, SetDate, SetSeconds);
+					  HAL_UART_Transmit(&huart1, (uint8_t* )Message, strlen(Message), strlen(Message));
 					  HappyToggling(100);
 					  SetAlarmFunc(SetHours, SetMinutes, SetDate, SetSeconds);
 				  } else
 				  {
-	//				  HAL_RTC_GetAlarm(&hrtc, &gAlarm, RTC_ALARM_A, RTC_FORMAT_BCD);
-	//				  sprintf(AlarmIsAlreadyOn, "%s %02x:%02x of %02x.%02x", AlarmIsAlreadyOn, gAlarm.AlarmTime.Hours, gAlarm.AlarmTime.Minutes, gAlarm.AlarmTime.Seconds, gAlarm.AlarmDateWeekDay);
-					  HAL_UART_Transmit(&huart1, AlarmExpired, strlen(AlarmExpired), strlen(AlarmExpired));
-	//				  HAL_UART_Transmit(&huart1, AlarmIsAlreadyOn, strlen(AlarmIsAlreadyOn), 35);
+					  HAL_UART_Transmit(&huart1, (uint8_t* )AlarmExpired, strlen(AlarmExpired), strlen(AlarmExpired));
 				  }
 			  } else
 			  {
-	//			  memset(Message, 0, sizeof(Message));
-				  sprintf(Message, "%s %02x:%02x of %02x.%02x\0", AlarmIsAlreadyOn, gAlarm.AlarmTime.Hours, gAlarm.AlarmTime.Minutes, gAlarm.AlarmTime.Seconds, gAlarm.AlarmDateWeekDay);
-	  //		  	  sprintf(Message2, "%s %02x:%02x of %02x.%02x\0", AlarmIsAlreadyOn, gAlarm.AlarmTime.Hours, gAlarm.AlarmTime.Minutes, gAlarm.AlarmTime.Seconds, gAlarm.AlarmDateWeekDay);
-	  //		  	  sprintf(*Message3, "%s %02x:%02x of %02x.%02x\0", AlarmIsAlreadyOn, gAlarm.AlarmTime.Hours, gAlarm.AlarmTime.Minutes, gAlarm.AlarmTime.Seconds, gAlarm.AlarmDateWeekDay);
-	  //		  	  sprintf(&Message4, "%s %02x:%02x of %02x.%02x\0", AlarmIsAlreadyOn, gAlarm.AlarmTime.Hours, gAlarm.AlarmTime.Minutes, gAlarm.AlarmTime.Seconds, gAlarm.AlarmDateWeekDay);
-				  HAL_UART_Transmit(&huart1, Message, strlen(Message), strlen(Message));
+				  sprintf(Message, "%s %02x:%02x of %02x.%02x", AlarmIsAlreadyOn, gAlarm.AlarmTime.Hours, gAlarm.AlarmTime.Minutes, gAlarm.AlarmTime.Seconds, gAlarm.AlarmDateWeekDay);
+				  HAL_UART_Transmit(&huart1, (uint8_t* )Message, strlen(Message), strlen(Message));
 			  }
 		  } else
 		  {
-			  sprintf(Message, "Set alarm to %02d:%02d of %02d.%02d\0",SetHours, SetMinutes, SetDate, SetSeconds);
-			  HAL_UART_Transmit(&huart1, Message, strlen(Message), strlen(Message));
+			  sprintf(Message, "Set alarm to %02d:%02d of %02d.%02d",SetHours, SetMinutes, SetDate, SetSeconds);
+			  HAL_UART_Transmit(&huart1, (uint8_t* )Message, strlen(Message), strlen(Message));
 			  HappyToggling(100);
 			  SetAlarmFunc(SetHours, SetMinutes, SetDate, SetSeconds);
 		  }
@@ -487,36 +461,42 @@ int main(void)
 
 	  GetTimeDate();
 
-	  if (alarm)
+	  if (AlarmRing)
 	  {
 		  ToDoOnAlarm();
-		  alarm = 0;
+		  AlarmRing = 0;
 	  }
 
-	  if (DeleteAlarmFlag)
+	  if (DeleteAlarm)
 	  {
-		  SetAlarmFunc(0,0,1,1);
-		DeleteAlarmFlag = 0;
+		  if (DoorIsOpenFlag)
+		  {
+			  sprintf(Message, "Alarm deleted");
+			  HAL_UART_Transmit(&huart1, (uint8_t* )Message, strlen(Message), strlen(Message));
+			  SetAlarmFunc(0,0,1,1);
+		  } else
+		  {
+			  sprintf(Message, "You can't delete alarm while the door is closed");
+			  HAL_UART_Transmit(&huart1, (uint8_t* )Message, strlen(Message), strlen(Message));
+		  }
+		  DeleteAlarm = 0;
 	  }
 
-	  if (GetAlarmFlag)
+	  if (GetAlarm)
 	  {
 		  HAL_RTC_GetAlarm(&hrtc, &gAlarm, RTC_ALARM_A, RTC_FORMAT_BCD);
 		  HAL_RTC_GetTime(&hrtc, &gTime, RTC_FORMAT_BCD);
 		  HAL_RTC_GetDate(&hrtc, &gDate, RTC_FORMAT_BCD);
 		  sprintf(Message, "%s %02x:%02x of %02x.%02x. Time now: %02x:%02x %02x.%02x", AlarmNowIsOn, gAlarm.AlarmTime.Hours, gAlarm.AlarmTime.Minutes, gAlarm.AlarmTime.Seconds, gAlarm.AlarmDateWeekDay, gTime.Hours, gTime.Minutes, gDate.Month, gDate.Date);
-		  HAL_UART_Transmit(&huart1, Message, strlen(Message), strlen(Message));
-		  GetAlarmFlag = 0;
+		  HAL_UART_Transmit(&huart1, (uint8_t* )Message, strlen(Message), strlen(Message));
+		  GetAlarm = 0;
 	  }
 
 //	  1000 milliseconds is just a time, taken from nothing, during that RX interrupts will be disabled
 	  NowTime = HAL_GetTick();
-//	  if (((IgnoringFlag == 1) || (NowTime - MessageTimer > 5000)) && ((NowTime - StartIgnoringTimer) > 1000))
-	  if ((CharCounter >= 8) && (NowTime - MessageTimer > 5000))
-//	  if (NowTime - StartIgnoringTimer > 1000)
+	  if ((CharCounter >= 1) && (NowTime - MessageTimer > 1000))
 	  {
 		  CharCounter = 0;
-//		  IgnoringFlag = 0;
 		  __HAL_UART_CLEAR_OREFLAG(&huart1);
 		  __HAL_UART_ENABLE_IT(&huart1, UART_IT_RXNE);
 		  HappyToggling(30);

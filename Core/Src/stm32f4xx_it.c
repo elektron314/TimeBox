@@ -53,30 +53,23 @@ RTC_HandleTypeDef hrtc;
 RTC_AlarmTypeDef gAlarm;
 RTC_DateTypeDef gDate;
 RTC_TimeTypeDef gTime;
-
 uint8_t JitterButtonK0 = 0;
 uint8_t JitterButtonK1 = 0;
 uint8_t RxData[1];
+extern char Buffer[];
 extern uint8_t CharCounter;
-extern uint8_t Buffer[];
-extern uint8_t Message[];
-extern uint32_t StartIgnoringTimer;
 extern uint32_t MessageTimer;
-extern uint8_t IgnoringFlag;
-uint8_t OpenMessage[] = "open\0";
-uint8_t DelMessage[] = "del\0";
-uint8_t GetAlarm[] = "get alarm\0";
-//uint8_t AlarmNowIsOn[26] = "Alarm is on\0";
-extern uint8_t AlarmNowIsOn[];
-
-uint8_t Hstr[2], Mstr[2], Dstr[2], Sstr[2];
+char OpenMessage[] = "open\0";
+char DelMessage[] = "del\0";
+char GetAlarmMessage[] = "get alarm\0";
+extern char AlarmNowIsOn[];
+extern char Message[];
+char Hstr[2], Mstr[2], Dstr[2], Sstr[2];
 extern uint8_t SetAlarm;
 extern uint8_t SetHours, SetMinutes, SetDate, SetSeconds;
-
 extern uint8_t K0isPressed, K1isPressed;
-extern uint8_t DoorIsLockedFlag;
-extern uint8_t DeleteAlarmFlag;
-extern uint8_t GetAlarmFlag;
+extern uint8_t DeleteAlarm;
+extern uint8_t GetAlarm;
 
 /* USER CODE END PV */
 
@@ -296,84 +289,41 @@ void USART1_IRQHandler(void)
 
   if (MessageTimer == 0)
 	  MessageTimer = HAL_GetTick();
-//  IgnoringFlag = 1;
   HAL_UART_Receive(&huart1, RxData, 1, 10);
   Buffer[CharCounter] = *RxData;
   CharCounter++;
 
-  if ((CharCounter == strlen(DelMessage)) && (DoorIsLockedFlag))
+  if (CharCounter == strlen(DelMessage))
   {
-//	  StartIgnoringTimer = HAL_GetTick();
-	  uint8_t loop;
-	  for (loop = 0; loop < CharCounter; loop++)
+	  if (!strncmp(Buffer, DelMessage, CharCounter))
 	  {
-		  if (Buffer[loop] == DelMessage[loop])
-		  {
-			  if (loop == CharCounter-1)
-			  {
-	//  				  __HAL_UART_DISABLE_IT(&huart1, UART_IT_RXNE);
-				  DeleteAlarmFlag = 1;
-				  sprintf(Message, "Alarm deleted");
-				  HAL_UART_Transmit(&huart1, Message, strlen(Message), strlen(Message));
-			  }
-			  continue;
-		  }
-		  else
-			  break;
+		  DeleteAlarm = 1;
 	  }
   }
 
   if (CharCounter == strlen(OpenMessage))
   {
-//	  StartIgnoringTimer = HAL_GetTick();
-	  uint8_t loop;
-	  for (loop = 0; loop < CharCounter; loop++)
+	  if (!strncmp(Buffer, OpenMessage, CharCounter))
 	  {
-		  if (Buffer[loop] == OpenMessage[loop])
+		  if (IsAlarmSetBeforeNow())
 		  {
-			  if (loop == CharCounter-1)
-			  {
-//				  __HAL_UART_DISABLE_IT(&huart1, UART_IT_RXNE);
-				  if (IsAlarmSetBeforeNow())
-				  {
-					  HAL_GPIO_WritePin(OpenDoor_GPIO_Port, OpenDoor_Pin, RESET);
-					  HAL_UART_Transmit(&huart1, Buffer, CharCounter, CharCounter);
-					  HAL_GPIO_WritePin(OpenDoor_GPIO_Port, OpenDoor_Pin, SET);
-				  } else
-				  {
-					  HAL_RTC_GetAlarm(&hrtc, &gAlarm, RTC_ALARM_A, RTC_FORMAT_BCD);
-					  sprintf(Message, "%s %02x:%02x of %02x.%02x", AlarmNowIsOn, gAlarm.AlarmTime.Hours, gAlarm.AlarmTime.Minutes, gAlarm.AlarmTime.Seconds, gAlarm.AlarmDateWeekDay);
-					  HAL_UART_Transmit(&huart1, Message, strlen(Message), strlen(Message));
-				  }
-			  }
-			  continue;
+			  HAL_GPIO_WritePin(OpenDoor_GPIO_Port, OpenDoor_Pin, RESET);
+			  HAL_UART_Transmit(&huart1, (uint8_t* )Buffer, CharCounter, CharCounter);
+			  HAL_GPIO_WritePin(OpenDoor_GPIO_Port, OpenDoor_Pin, SET);
+		  } else
+		  {
+			  HAL_RTC_GetAlarm(&hrtc, &gAlarm, RTC_ALARM_A, RTC_FORMAT_BCD);
+			  sprintf(Message, "%s %02x:%02x of %02x.%02x", AlarmNowIsOn, gAlarm.AlarmTime.Hours, gAlarm.AlarmTime.Minutes, gAlarm.AlarmTime.Seconds, gAlarm.AlarmDateWeekDay);
+			  HAL_UART_Transmit(&huart1, (uint8_t* )Message, strlen(Message), strlen(Message));
 		  }
-		  else
-			  break;
 	  }
   }
 
-  if (CharCounter == strlen(GetAlarm))
+  if (CharCounter == strlen(GetAlarmMessage))
   {
-	  uint8_t loop;
-	  for (loop = 0; loop < CharCounter; loop++)
+	  if (!strncmp(Buffer, GetAlarmMessage, CharCounter))
 	  {
-		  if (Buffer[loop] == GetAlarm[loop])
-		  {
-			  if (loop == CharCounter-1)
-			  {
-//				  __HAL_UART_DISABLE_IT(&huart1, UART_IT_RXNE);
-				  GetAlarmFlag = 1;
-//				  HAL_RTC_GetAlarm(&hrtc, &gAlarm, RTC_ALARM_A, RTC_FORMAT_BCD);
-//				  HAL_RTC_GetTime(&hrtc, &gTime, RTC_FORMAT_BCD);
-//				  HAL_RTC_GetDate(&hrtc, &gDate, RTC_FORMAT_BCD);
-//				  sprintf(Message, "%s %02x:%02x of %02x.%02x. Time now: %02x:%02x %02x.%02x", AlarmNowIsOn, gAlarm.AlarmTime.Hours, gAlarm.AlarmTime.Minutes, gAlarm.AlarmTime.Seconds, gAlarm.AlarmDateWeekDay, gTime.Hours, gTime.Minutes, gDate.Month, gDate.Date);
-//				  HAL_UART_Transmit(&huart1, Message, strlen(Message), strlen(Message));
-			  }
-			  continue;
-		  }
-		  else
-			  break;
+		  GetAlarm = 1;
 	  }
   }
 
@@ -389,23 +339,23 @@ void USART1_IRQHandler(void)
 				  __HAL_UART_DISABLE_IT(&huart1, UART_IT_RXNE);
 
 //				  check if all the received numbers are valid to set for alarm
-				  Hstr[0] = (uint8_t)Buffer[0];
-				  Hstr[1] = (uint8_t)Buffer[1];
+				  Hstr[0] = (char)Buffer[0];
+				  Hstr[1] = (char)Buffer[1];
 				  SetHours = atoi(Hstr);
 				  if ( (SetHours >= 0) && (SetHours <= 23) )
 				  {
-					  Mstr[0] = (uint8_t)Buffer[2];
-					  Mstr[1] = (uint8_t)Buffer[3];
+					  Mstr[0] = (char)Buffer[2];
+					  Mstr[1] = (char)Buffer[3];
 					  SetMinutes = atoi(Mstr);
 					  if ( (SetMinutes >= 0) && (SetMinutes <= 59) )
 					  {
-						  Dstr[0] = (uint8_t)Buffer[6];
-						  Dstr[1] = (uint8_t)Buffer[7];
+						  Dstr[0] = (char)Buffer[6];
+						  Dstr[1] = (char)Buffer[7];
 						  SetDate = atoi(Dstr);
 						  if ( (SetDate >= 1) && (SetDate <= 30) )
 						  {
-							  Sstr[0] = (uint8_t)Buffer[4];
-							  Sstr[1] = (uint8_t)Buffer[5];
+							  Sstr[0] = (char)Buffer[4];
+							  Sstr[1] = (char)Buffer[5];
 							  SetSeconds = atoi(Sstr);
 							  SetAlarm = 1;
 						  }
