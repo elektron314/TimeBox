@@ -60,8 +60,8 @@ char date[9];
 
 uint8_t alarm;
 
-volatile uint8_t SetAlarm;
-volatile uint8_t SetHours, SetMinutes, SetDate, SetSeconds;
+uint8_t SetAlarm;
+uint8_t SetHours, SetMinutes, SetDate, SetSeconds;
 
 uint8_t CharCounter;
 uint32_t StartIgnoringTimer;
@@ -76,9 +76,13 @@ uint8_t * Message3;
 uint8_t * Message4;
 uint8_t AlarmIsAlreadyOn[] = "Alarm is already on\0";
 uint8_t AlarmExpired[] = "You can't set expired alarm\0";
+uint8_t AlarmNowIsOn[] = "Alarm is on\0";
 uint32_t NowTime;
+uint8_t DeleteAlarmFlag;
+uint8_t GetAlarmFlag;
 
 uint8_t K0isPressed, K1isPressed;
+uint8_t DoorIsLockedFlag = 1;
 
 /* USER CODE END PV */
 
@@ -88,6 +92,10 @@ static void MX_GPIO_Init(void);
 static void MX_RTC_Init(void);
 static void MX_USART1_UART_Init(void);
 /* USER CODE BEGIN PFP */
+
+uint8_t IsNewAlarmMoreFresh(void);
+uint8_t IsAlarmSetBeforeNow(void);
+uint8_t IsAlarmSetBeforeNow(void);
 
 /* USER CODE END PFP */
 
@@ -361,10 +369,10 @@ void ToDoOnAlarm(void)
 	HappyToggling(150);
 }
 
-void DeleteAlarm(void)
-{
-	SetAlarmFunc(0,0,1,1);
-}
+//void DeleteAlarm(void)
+//{
+//	SetAlarmFunc(0,0,1,1);
+//}
 
   /* USER CODE END 6 */
 
@@ -429,33 +437,51 @@ int main(void)
 //	if I upload confifugartion from CubeMX Configurator I need to delete set time from MX_RTC_Init()!
 //	!!
 
+	  if (HAL_GPIO_ReadPin(MagnetDoor_GPIO_Port, MagnetDoor_Pin) == 0)
+	  {
+		  HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin);
+		  DoorIsLockedFlag = 1;
+	  } else
+		  DoorIsLockedFlag = 0;
+
 	  HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
 	  HAL_Delay(200);
 
 	  if (SetAlarm)
 	  {
-		  if (IsNewAlarmMoreFresh())
+		  if (DoorIsLockedFlag)
 		  {
-			  if (IsNewAlarmAfterNow())
+			  if (IsNewAlarmMoreFresh())
 			  {
-				  sprintf(Message, "Set alarm to %02d:%02d of %02d.%02d\0",SetHours, SetMinutes, SetDate, SetSeconds);
-				  HAL_UART_Transmit(&huart1, Message, strlen(Message), strlen(Message));
-				  HappyToggling(100);
-//				  HAL_Delay(60000);
-				  SetAlarmFunc(SetHours, SetMinutes, SetDate, SetSeconds);
+				  if (IsNewAlarmAfterNow())
+				  {
+					  sprintf(Message, "Set alarm to %02d:%02d of %02d.%02d\0",SetHours, SetMinutes, SetDate, SetSeconds);
+					  HAL_UART_Transmit(&huart1, Message, strlen(Message), strlen(Message));
+					  HappyToggling(100);
+					  SetAlarmFunc(SetHours, SetMinutes, SetDate, SetSeconds);
+				  } else
+				  {
+	//				  HAL_RTC_GetAlarm(&hrtc, &gAlarm, RTC_ALARM_A, RTC_FORMAT_BCD);
+	//				  sprintf(AlarmIsAlreadyOn, "%s %02x:%02x of %02x.%02x", AlarmIsAlreadyOn, gAlarm.AlarmTime.Hours, gAlarm.AlarmTime.Minutes, gAlarm.AlarmTime.Seconds, gAlarm.AlarmDateWeekDay);
+					  HAL_UART_Transmit(&huart1, AlarmExpired, strlen(AlarmExpired), strlen(AlarmExpired));
+	//				  HAL_UART_Transmit(&huart1, AlarmIsAlreadyOn, strlen(AlarmIsAlreadyOn), 35);
+				  }
 			  } else
 			  {
-				  HAL_RTC_GetAlarm(&hrtc, &gAlarm, RTC_ALARM_A, RTC_FORMAT_BCD);
-//				  sprintf(AlarmIsAlreadyOn, "%s %02x:%02x of %02x.%02x", AlarmIsAlreadyOn, gAlarm.AlarmTime.Hours, gAlarm.AlarmTime.Minutes, gAlarm.AlarmTime.Seconds, gAlarm.AlarmDateWeekDay);
-				  HAL_UART_Transmit(&huart1, AlarmExpired, strlen(AlarmExpired), 29);
-//				  HAL_UART_Transmit(&huart1, AlarmIsAlreadyOn, strlen(AlarmIsAlreadyOn), 35);
+	//			  memset(Message, 0, sizeof(Message));
+				  sprintf(Message, "%s %02x:%02x of %02x.%02x\0", AlarmIsAlreadyOn, gAlarm.AlarmTime.Hours, gAlarm.AlarmTime.Minutes, gAlarm.AlarmTime.Seconds, gAlarm.AlarmDateWeekDay);
+	  //		  	  sprintf(Message2, "%s %02x:%02x of %02x.%02x\0", AlarmIsAlreadyOn, gAlarm.AlarmTime.Hours, gAlarm.AlarmTime.Minutes, gAlarm.AlarmTime.Seconds, gAlarm.AlarmDateWeekDay);
+	  //		  	  sprintf(*Message3, "%s %02x:%02x of %02x.%02x\0", AlarmIsAlreadyOn, gAlarm.AlarmTime.Hours, gAlarm.AlarmTime.Minutes, gAlarm.AlarmTime.Seconds, gAlarm.AlarmDateWeekDay);
+	  //		  	  sprintf(&Message4, "%s %02x:%02x of %02x.%02x\0", AlarmIsAlreadyOn, gAlarm.AlarmTime.Hours, gAlarm.AlarmTime.Minutes, gAlarm.AlarmTime.Seconds, gAlarm.AlarmDateWeekDay);
+				  HAL_UART_Transmit(&huart1, Message, strlen(Message), strlen(Message));
 			  }
 		  } else
-			  sprintf(Message, "%s %02x:%02x of %02x.%02x\0", AlarmIsAlreadyOn, gAlarm.AlarmTime.Hours, gAlarm.AlarmTime.Minutes, gAlarm.AlarmTime.Seconds, gAlarm.AlarmDateWeekDay);
-//		  	  sprintf(Message2, "%s %02x:%02x of %02x.%02x\0", AlarmIsAlreadyOn, gAlarm.AlarmTime.Hours, gAlarm.AlarmTime.Minutes, gAlarm.AlarmTime.Seconds, gAlarm.AlarmDateWeekDay);
-//		  	  sprintf(*Message3, "%s %02x:%02x of %02x.%02x\0", AlarmIsAlreadyOn, gAlarm.AlarmTime.Hours, gAlarm.AlarmTime.Minutes, gAlarm.AlarmTime.Seconds, gAlarm.AlarmDateWeekDay);
-//		  	  sprintf(&Message4, "%s %02x:%02x of %02x.%02x\0", AlarmIsAlreadyOn, gAlarm.AlarmTime.Hours, gAlarm.AlarmTime.Minutes, gAlarm.AlarmTime.Seconds, gAlarm.AlarmDateWeekDay);
+		  {
+			  sprintf(Message, "Set alarm to %02d:%02d of %02d.%02d\0",SetHours, SetMinutes, SetDate, SetSeconds);
 			  HAL_UART_Transmit(&huart1, Message, strlen(Message), strlen(Message));
+			  HappyToggling(100);
+			  SetAlarmFunc(SetHours, SetMinutes, SetDate, SetSeconds);
+		  }
 		  SetAlarm = 0;
 	  }
 
@@ -465,6 +491,22 @@ int main(void)
 	  {
 		  ToDoOnAlarm();
 		  alarm = 0;
+	  }
+
+	  if (DeleteAlarmFlag)
+	  {
+		  SetAlarmFunc(0,0,1,1);
+		DeleteAlarmFlag = 0;
+	  }
+
+	  if (GetAlarmFlag)
+	  {
+		  HAL_RTC_GetAlarm(&hrtc, &gAlarm, RTC_ALARM_A, RTC_FORMAT_BCD);
+		  HAL_RTC_GetTime(&hrtc, &gTime, RTC_FORMAT_BCD);
+		  HAL_RTC_GetDate(&hrtc, &gDate, RTC_FORMAT_BCD);
+		  sprintf(Message, "%s %02x:%02x of %02x.%02x. Time now: %02x:%02x %02x.%02x", AlarmNowIsOn, gAlarm.AlarmTime.Hours, gAlarm.AlarmTime.Minutes, gAlarm.AlarmTime.Seconds, gAlarm.AlarmDateWeekDay, gTime.Hours, gTime.Minutes, gDate.Month, gDate.Date);
+		  HAL_UART_Transmit(&huart1, Message, strlen(Message), strlen(Message));
+		  GetAlarmFlag = 0;
 	  }
 
 //	  1000 milliseconds is just a time, taken from nothing, during that RX interrupts will be disabled
@@ -483,10 +525,6 @@ int main(void)
 
 	  Rewind5Sec();
 	  Forwardd5Sec();
-	  if (HAL_GPIO_ReadPin(MagnetDoor_GPIO_Port, MagnetDoor_Pin) == 0)
-	  {
-		  HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin);
-	  }
   }
   /* USER CODE END 3 */
 }
