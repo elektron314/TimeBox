@@ -70,6 +70,7 @@ extern uint8_t SetHours, SetMinutes, SetDate, SetSeconds;
 extern uint8_t K0isPressed, K1isPressed;
 extern uint8_t DeleteAlarm;
 extern uint8_t GetAlarm;
+extern uint8_t OpenTheDoorPlease;
 
 /* USER CODE END PV */
 
@@ -77,6 +78,7 @@ extern uint8_t GetAlarm;
 /* USER CODE BEGIN PFP */
 
 extern uint8_t IsAlarmSetBeforeNow(void);
+extern void OpenTheDoor(void);
 
 /* USER CODE END PFP */
 
@@ -307,9 +309,8 @@ void USART1_IRQHandler(void)
 	  {
 		  if (IsAlarmSetBeforeNow())
 		  {
-			  HAL_GPIO_WritePin(OpenDoor_GPIO_Port, OpenDoor_Pin, RESET);
+			  OpenTheDoorPlease = 1;
 			  HAL_UART_Transmit(&huart1, (uint8_t* )Buffer, CharCounter, CharCounter);
-			  HAL_GPIO_WritePin(OpenDoor_GPIO_Port, OpenDoor_Pin, SET);
 		  } else
 		  {
 			  HAL_RTC_GetAlarm(&hrtc, &gAlarm, RTC_ALARM_A, RTC_FORMAT_BCD);

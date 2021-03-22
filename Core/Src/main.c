@@ -72,7 +72,8 @@ char AlarmNowIsOn[] = "Alarm is on\0";
 uint8_t DeleteAlarm = 0;
 uint8_t GetAlarm = 0;
 uint8_t K0isPressed, K1isPressed;
-uint8_t DoorIsOpenFlag = 1;
+uint8_t DoorIsOpenFlag = 0;
+uint8_t OpenTheDoorPlease = 0;
 
 /* USER CODE END PV */
 
@@ -128,11 +129,11 @@ void SetTime(void)
 	{
 		Error_Handler();
 	}
+
 	sDate.WeekDay = RTC_WEEKDAY_THURSDAY;
 	sDate.Month = RTC_MONTH_FEBRUARY;
 	sDate.Date = 0x25;
 	sDate.Year = 0x21;
-
 	if (HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BCD) != HAL_OK)
 	{
 		Error_Handler();
@@ -260,6 +261,8 @@ uint8_t IsNewAlarmMoreFresh(void)
 			}
 		}
 	}
+
+	return 0;
 }
 
 uint8_t IsNewAlarmAfterNow(void)
@@ -299,6 +302,7 @@ uint8_t IsNewAlarmAfterNow(void)
 			}
 		}
 	}
+	return 0;
 }
 
 void Rewind5Sec(void)
@@ -421,9 +425,9 @@ int main(void)
 	  if (HAL_GPIO_ReadPin(MagnetDoor_GPIO_Port, MagnetDoor_Pin) == 0)
 	  {
 		  HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin);
-		  DoorIsOpenFlag = 1;
-	  } else
 		  DoorIsOpenFlag = 0;
+	  } else
+		  DoorIsOpenFlag = 1;
 
 	  HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
 	  HAL_Delay(200);
@@ -487,8 +491,8 @@ int main(void)
 		  HAL_RTC_GetAlarm(&hrtc, &gAlarm, RTC_ALARM_A, RTC_FORMAT_BCD);
 		  HAL_RTC_GetTime(&hrtc, &gTime, RTC_FORMAT_BCD);
 		  HAL_RTC_GetDate(&hrtc, &gDate, RTC_FORMAT_BCD);
-		  sprintf(Message, "%s %02x:%02x of %02x.%02x. Time now: %02x:%02x %02x.%02x", AlarmNowIsOn, gAlarm.AlarmTime.Hours, gAlarm.AlarmTime.Minutes, gAlarm.AlarmTime.Seconds, gAlarm.AlarmDateWeekDay, gTime.Hours, gTime.Minutes, gDate.Month, gDate.Date);
-		  HAL_UART_Transmit(&huart1, (uint8_t* )Message, strlen(Message), strlen(Message));
+		  sprintf(Message, "%s %02x:%02x of %02x.%02x. Time now: %02x:%02x %02x.%02x.%02x", AlarmNowIsOn, gAlarm.AlarmTime.Hours, gAlarm.AlarmTime.Minutes, gAlarm.AlarmTime.Seconds, gAlarm.AlarmDateWeekDay, gTime.Hours, gTime.Minutes, gDate.Year, gDate.Month, gDate.Date);
+		  HAL_UART_Transmit(&huart1, (uint8_t* )Message, strlen(Message)+1, strlen(Message)+1);
 		  GetAlarm = 0;
 	  }
 
@@ -501,6 +505,12 @@ int main(void)
 		  __HAL_UART_ENABLE_IT(&huart1, UART_IT_RXNE);
 		  HappyToggling(30);
 		  MessageTimer = 0;
+	  }
+
+	  if (OpenTheDoorPlease == 1)
+	  {
+		  OpenTheDoorPlease = 0;
+		  OpenTheDoor();
 	  }
 
 	  Rewind5Sec();
@@ -595,8 +605,8 @@ static void MX_RTC_Init(void)
 
   /** Initialize RTC and set the Time and Date
   */
-//  sTime.Hours = 1;
-//  sTime.Minutes = 57;
+//  sTime.Hours = 0x21;
+//  sTime.Minutes = 0x40;
 //  sTime.Seconds = 0x0;
 //  sTime.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
 //  sTime.StoreOperation = RTC_STOREOPERATION_RESET;
@@ -604,17 +614,17 @@ static void MX_RTC_Init(void)
 //  {
 //    Error_Handler();
 //  }
-//  sDate.WeekDay = RTC_WEEKDAY_WEDNESDAY;
-//  sDate.Month = RTC_MONTH_FEBRUARY;
-//  sDate.Date = 0x10;
+//  sDate.WeekDay = RTC_WEEKDAY_SUNDAY;
+//  sDate.Month = RTC_MONTH_MARCH;
+//  sDate.Date = 0x21;
 //  sDate.Year = 0x21;
 //
 //  if (HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BCD) != HAL_OK)
 //  {
 //    Error_Handler();
 //  }
-//  /** Enable the Alarm A
-//  */
+  /** Enable the Alarm A
+  */
 //  sAlarm.AlarmTime.Hours = 0x0;
 //  sAlarm.AlarmTime.Minutes = 0x0;
 //  sAlarm.AlarmTime.Seconds = 0x0;
